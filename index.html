@@ -1,0 +1,1880 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>G-Fun 3D CAD ＋ 発注リスト</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --green: #1a6b3c;
+  --green2: #2a8a50;
+  --accent: #f0a500;
+  --bg-dark: #1a1a1a;
+  --panel-dark: #222;
+  --panel-light: #f5f7f5;
+  --border-light: #dde4dd;
+  --text: #1e2a1e;
+  --text-sub: #5a6e5a;
+}
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', 'Yu Gothic', sans-serif;
+  background: var(--bg-dark);
+  color: #eee;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── HEADER ── */
+header {
+  background: var(--green);
+  color: white;
+  padding: 0 16px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  z-index: 10;
+}
+header h1 { font-size: 14px; font-weight: 700; white-space: nowrap; }
+.badge { background: var(--accent); color: #111; border-radius: 3px; padding: 1px 6px; font-size: 10px; font-weight: 700; }
+.hbtns { margin-left: auto; display: flex; gap: 5px; }
+.hbtn {
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.25);
+  color: white;
+  padding: 5px 11px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: background 0.1s;
+}
+.hbtn:hover { background: rgba(255,255,255,0.25); }
+
+/* ── BODY ── */
+.app { display: flex; flex: 1; overflow: hidden; }
+
+/* ── LEFT TOOLBAR ── */
+.toolbar {
+  width: 52px;
+  background: var(--panel-dark);
+  border-right: 1px solid #333;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 0;
+  gap: 2px;
+  flex-shrink: 0;
+  overflow-y: auto;
+}
+.tbtn {
+  width: 40px; height: 40px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: #888;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  line-height: 1;
+  transition: all 0.12s;
+  flex-shrink: 0;
+}
+.tbtn .lbl { font-size: 8px; color: #666; margin-top: 1px; }
+.tbtn:hover { background: #333; border-color: #555; color: #ddd; }
+.tbtn:hover .lbl { color: #aaa; }
+.tbtn.active { background: var(--green); border-color: var(--green); color: white; }
+.tbtn.active .lbl { color: rgba(255,255,255,0.8); }
+.tsep { width: 30px; height: 1px; background: #333; margin: 3px 0; flex-shrink: 0; }
+
+/* ── CANVAS AREA ── */
+.canvas-area {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-dark);
+}
+#cad3d { display: block; position: absolute; top: 0; left: 0; }
+#ovl {
+  position: absolute;
+  pointer-events: none;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  text-shadow: 0 1px 3px #000;
+  z-index: 4;
+  display: none;
+  white-space: nowrap;
+}
+.statusbar {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: rgba(0,0,0,0.75);
+  color: #888;
+  font-size: 11px;
+  padding: 4px 12px;
+  display: flex;
+  gap: 18px;
+  pointer-events: none;
+  z-index: 5;
+}
+.statusbar span { white-space: nowrap; }
+#hint { color: #f0a500; }
+.axis-legend {
+  position: absolute; top: 8px; left: 10px;
+  font-size: 11px; z-index: 5; pointer-events: none;
+  background: rgba(0,0,0,0.5); border-radius: 5px; padding: 5px 9px; line-height: 1.6;
+}
+.axis-legend b.x { color: #e06060; }
+.axis-legend b.y { color: #60d060; }
+.axis-legend b.z { color: #6090e0; }
+
+/* ── RIGHT PANEL ── */
+.rpanel {
+  width: 250px;
+  background: var(--panel-light);
+  border-left: 1px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+  color: var(--text);
+}
+.psec {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-light);
+}
+.psec-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--green);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+.frow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+.frow label { font-size: 11px; color: var(--text-sub); width: 58px; flex-shrink: 0; }
+.frow input, .frow select {
+  flex: 1;
+  padding: 4px 6px;
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: inherit;
+  background: white;
+  color: var(--text);
+  min-width: 0;
+}
+.frow input:focus, .frow select:focus { outline: none; border-color: var(--green); }
+.prop-scroll { flex: 1; overflow-y: auto; }
+.result-box {
+  background: #e8f5e9;
+  border: 1px solid #c8e6c9;
+  border-radius: 5px;
+  padding: 8px;
+  text-align: center;
+  margin-top: 6px;
+}
+.result-box .ell-val { font-size: 18px; font-weight: 700; color: var(--green); }
+.result-box .ell-lbl { font-size: 10px; color: var(--text-sub); }
+.result-box.error { background: #fdecea; border-color: #f5c6c2; }
+.result-box.error .ell-val { color: #c0392b; }
+.calc-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; }
+.calc-row .val { font-weight: 600; }
+.conn-info { font-size: 10px; color: var(--text-sub); margin: -2px 0 6px 64px; }
+
+/* ── BOM PANEL ── */
+.bom-panel {
+  border-top: 2px solid var(--green);
+  background: white;
+  color: var(--text);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  transition: height 0.2s;
+  height: 220px;
+}
+.bom-panel.collapsed { height: 38px; }
+.bom-hdr {
+  background: var(--green);
+  color: white;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+  user-select: none;
+}
+.bom-hdr .total-badge {
+  background: rgba(255,255,255,0.2);
+  border-radius: 3px;
+  padding: 1px 8px;
+  font-size: 11px;
+}
+.bom-hdr .chevron { margin-left: auto; font-size: 12px; }
+.bom-body { flex: 1; overflow: auto; }
+.bom-tbl { width: 100%; border-collapse: collapse; font-size: 11px; }
+.bom-tbl th {
+  background: #f0f4f0;
+  padding: 5px 8px;
+  text-align: left;
+  font-size: 10px;
+  color: var(--text-sub);
+  border-bottom: 1px solid var(--border-light);
+  position: sticky; top: 0;
+  white-space: nowrap;
+}
+.bom-tbl td { padding: 5px 8px; border-bottom: 1px solid #f0f0f0; }
+.bom-tbl tr:hover td { background: #f8fcf8; }
+.bom-tbl .tr-total td {
+  background: #e8f5e9;
+  font-weight: 700;
+  border-top: 2px solid var(--green);
+  border-bottom: none;
+}
+.r { text-align: right; }
+.note { font-size: 10px; color: var(--text-sub); padding: 6px 14px; background: white; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round">
+    <path d="M12 2 L21 7 L21 17 L12 22 L3 17 L3 7 Z"/>
+    <path d="M3 7 L12 12 L21 7"/><line x1="12" y1="12" x2="12" y2="22"/>
+  </svg>
+  <h1>G-Fun 3D CAD <span class="badge">立体図＋発注リスト</span></h1>
+  <div class="hbtns">
+    <button class="hbtn" onclick="newProject()">🆕 新規</button>
+    <button class="hbtn" onclick="saveProject()">💾 保存</button>
+    <button class="hbtn" onclick="loadProject()">📂 読込</button>
+    <button class="hbtn" onclick="exportCSV()">📊 CSV</button>
+    <button class="hbtn" onclick="exportPNG()">📷 画像</button>
+  </div>
+</header>
+
+<div class="app">
+
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <button class="tbtn active" id="tbtn-select" onclick="setTool('select')" title="選択 [V]">
+      ↖<span class="lbl">選択</span>
+    </button>
+    <button class="tbtn" id="tbtn-frame" onclick="setTool('frame')" title="フレーム描画 [F]">
+      ─<span class="lbl">描画</span>
+    </button>
+    <button class="tbtn" id="tbtn-panel" onclick="setTool('panel')" title="パネル描画 [P]（対角2点指定）">
+      ▱<span class="lbl">パネル</span>
+    </button>
+    <div class="tsep"></div>
+    <button class="tbtn" onclick="duplicateSelected()" title="複製 [Ctrl+D]">⧉<span class="lbl">複製</span></button>
+    <button class="tbtn" onclick="deleteSelected()" title="削除 [Del]">🗑<span class="lbl">削除</span></button>
+    <button class="tbtn" onclick="undo()" title="元に戻す [Ctrl+Z]">↩<span class="lbl">戻す</span></button>
+    <div class="tsep"></div>
+    <button class="tbtn" onclick="setView('iso')" title="等角ビュー [1]">◇<span class="lbl">等角</span></button>
+    <button class="tbtn" onclick="setView('top')" title="上面ビュー [2]">⬒<span class="lbl">上面</span></button>
+    <button class="tbtn" onclick="setView('front')" title="正面ビュー [3]">▣<span class="lbl">正面</span></button>
+    <button class="tbtn" onclick="setView('side')" title="側面ビュー [4]">◨<span class="lbl">側面</span></button>
+    <button class="tbtn" onclick="zoomFit()" title="全体表示 [0]">⊡<span class="lbl">全体</span></button>
+    <div class="tsep"></div>
+    <button class="tbtn" id="tbtn-grid" onclick="toggleGrid()" title="グリッド [G]" style="color:var(--accent)">
+      ⊞<span class="lbl">グリッド</span>
+    </button>
+    <button class="tbtn" id="tbtn-dim" onclick="toggleDim()" title="寸法表示" style="color:var(--accent)">
+      ↔<span class="lbl">寸法</span>
+    </button>
+  </div>
+
+  <!-- CANVAS -->
+  <div class="canvas-area" id="canvasArea">
+    <canvas id="cad3d"></canvas>
+    <div id="ovl"></div>
+    <div class="axis-legend">
+      <b class="x">X</b>：幅（赤）　<b class="y">Y</b>：高さ（緑）　<b class="z">Z</b>：奥行（青）<br>
+      <span style="color:#aaa">コネクタ形状：円筒=マルチ／立方体=アングル／球=フリー／円錐=角度付き／<span style="color:#e74c3c">赤点=なし</span></span>
+    </div>
+    <div class="statusbar">
+      <span id="s-pos">X: 0  Y: 0  Z: 0 mm</span>
+      <span id="s-count">フレーム 0本</span>
+      <span id="hint">V:選択　F:描画　Shift:軸固定　右ドラッグ:回転　中/Shift+右:パン　ホイール:ズーム</span>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="rpanel">
+    <!-- Drawing settings -->
+    <div class="psec">
+      <div class="psec-title">描画設定</div>
+      <div class="frow">
+        <label>シリーズ</label>
+        <select id="ds-series" onchange="fillProdSelect()">
+          <option value="N">N [28mm]</option>
+          <option value="S">S [19mm]</option>
+          <option value="G">G [43mm]</option>
+        </select>
+      </div>
+      <div class="frow">
+        <label>品種</label>
+        <select id="ds-prod" title="フレームの品種。標準以外は単価がストア確認となります"></select>
+      </div>
+      <div class="frow">
+        <label>カラー</label>
+        <select id="ds-color">
+          <option value="S">シルバー</option>
+          <option value="B">ブラック</option>
+        </select>
+      </div>
+      <div class="frow">
+        <label>スナップ</label>
+        <select id="ds-snap" onchange="snapSz = +this.value">
+          <option value="5">5mm</option>
+          <option value="10" selected>10mm</option>
+          <option value="25">25mm</option>
+          <option value="50">50mm</option>
+        </select>
+      </div>
+      <div class="frow">
+        <label>作業平面</label>
+        <select id="ds-plane" onchange="setPlaneMode(this.value)">
+          <option value="XZ" selected>床面 XZ（水平）</option>
+          <option value="XY">正面 XY（垂直）</option>
+          <option value="YZ">側面 YZ（垂直）</option>
+        </select>
+      </div>
+      <div class="frow">
+        <label>平面位置</label>
+        <input type="number" id="ds-offset" value="0" step="10"
+          onchange="setPlaneOffset(+this.value||0)" title="作業平面の位置（法線方向mm）。端点スナップで自動更新">
+      </div>
+    </div>
+    <!-- 表示設定 -->
+    <div class="psec">
+      <div class="psec-title">寸法ラベル表示</div>
+      <div class="frow">
+        <label>文字サイズ</label>
+        <select id="ds-fsize" onchange="labelScale = +this.value; rebuildScene()">
+          <option value="0.5">小</option>
+          <option value="0.9" selected>標準</option>
+          <option value="1.4">大</option>
+          <option value="2.0">特大</option>
+        </select>
+      </div>
+      <div class="frow">
+        <label>表示内容</label>
+        <select id="ds-dimmode" onchange="dimMode = this.value; rebuildScene()">
+          <option value="prod" selected>品名＋長さ（GFunフレームN 300mm）</option>
+          <option value="full">長さ＋ℓ寸法</option>
+          <option value="len">長さのみ</option>
+          <option value="name">名称のみ</option>
+        </select>
+      </div>
+      <div style="font-size:10px;color:var(--text-sub)">全体の表示/非表示はツールバーの [↔ 寸法]。フレームごとの非表示はプロパティで設定できます。</div>
+    </div>
+    <!-- Properties -->
+    <div class="prop-scroll">
+      <div class="psec" id="propSec">
+        <div class="psec-title">プロパティ</div>
+        <div id="propContent" style="font-size:11px; color:#999; line-height:1.7">
+          フレームを選択、または<br>
+          <b>[F]</b>キーで描画開始<br><br>
+          💡 操作方法:<br>
+          ・クリック → 始点<br>
+          ・再クリック → 終点（フレーム確定）<br>
+          ・描画中は長さ＋角度を表示<br>
+          ・Shift → X/Y/Z軸に固定<br>
+          ・コネクタをクリック → 選択/変更<br>
+          ・Ctrl+D → 選択フレームを複製<br>
+          ・[P] → パネル/扉（対角2点で描画）<br>
+          ・キャップ/フット/キャスターは<br>
+          　コネクタ欄の「端部パーツ」から選択<br>
+          ・既存の端点に近づくと自動スナップ<br>
+          ・縦フレームは作業平面を<br>
+          　「正面XY」か「側面YZ」に切替<br>
+          ・Esc → 描画キャンセル<br>
+          ・右ドラッグ → 視点回転<br>
+          ・中ドラッグ / Shift+右 → パン<br>
+          ・ホイール → ズーム
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- BOM PANEL -->
+<div class="bom-panel" id="bomPanel">
+  <div class="bom-hdr" onclick="toggleBOM()">
+    <span>📋 発注リスト（BOM）</span>
+    <span class="total-badge" id="bomBadge"></span>
+    <span class="chevron" id="bomChev">▼</span>
+  </div>
+  <div class="bom-body" id="bomBody">
+    <table class="bom-tbl">
+      <thead>
+        <tr>
+          <th>品番</th><th>品名</th><th>仕様</th>
+          <th class="r">ℓ寸法</th><th class="r">数量</th>
+          <th class="r">単価(税込)</th><th class="r">小計(税込)</th>
+        </tr>
+      </thead>
+      <tbody id="bomTbody"></tbody>
+      <tfoot id="bomTfoot"></tfoot>
+    </table>
+    <div class="note" id="bomNote">フレームを描画すると自動で発注リストが生成されます。</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ===================================================================
+//  G-Fun 3D CAD + 発注リスト  (c) 2026
+//  座標系: X=幅(赤) Y=高さ(緑・上方向) Z=奥行(青)  単位:mm
+// ===================================================================
+
+// ---------- データ定義（2D版と共通） ----------
+const SD = { // Series Data
+  N: { w:28, frameCode:{S:'SGF-0220',B:'SGF-0221'}, ppm:0.77, col:{S:'#b2b2b2',B:'#383838'} },
+  S: { w:19, frameCode:{S:'SGF-0232',B:'SGF-0233'}, ppm:0.55, col:{S:'#90afc5',B:'#2e3d50'} },
+  G: { w:43, frameCode:{S:'SGF-0289',B:'SGF-0291'}, ppm:1.21, col:{S:'#c8a870',B:'#6b4820'} },
+};
+
+const CN = { // 全コネクタ（ストア コネクタカテゴリ185品目中の端部挿入タイプ。価格2026-07-04時点）
+  N: [
+    {id:'none', name:'（なし）', code:'', codeB:'', ins:0, p:0, pB:0},
+    {id:'mi', name:'マルチコネクタインナー', code:'SGF-0007', codeB:'SGF-0240', ins:14.5, p:341, pB:440},
+    {id:'mir', name:'マルチコネクタインナーR', code:'SGF-0009', codeB:'SGF-0242', ins:14.5, p:341, pB:440},
+    {id:'mig', name:'マルチコネクタインナー グレー塗装', code:'SGF-0529', codeB:'', ins:14.5, p:539, pB:0},
+    {id:'mi2', name:'マルチコネクタインナー2', code:'SGF-0495', codeB:'', ins:14.5, p:451, pB:0},
+    {id:'miknob', name:'マルチコネクタインナー ノブボルト', code:'SGF-0315', codeB:'', ins:14.5, p:616, pB:0},
+    {id:'mirknob', name:'マルチコネクタインナーR ノブボルト', code:'SGF-0556', codeB:'', ins:14.5, p:638, pB:0},
+    {id:'mil', name:'マルチコネクタインナーロング', code:'SGF-0073', codeB:'SGF-0243', ins:24.5, p:539, pB:682},
+    {id:'milg', name:'マルチコネクタインナーロング グレー塗装', code:'SGF-0535', codeB:'', ins:24.5, p:704, pB:0},
+    {id:'mo', name:'マルチコネクタアウター', code:'SGF-0069', codeB:'SGF-0241', ins:14.5, p:275, pB:363},
+    {id:'mog', name:'マルチコネクタアウター グレー塗装', code:'SGF-0531', codeB:'', ins:14.5, p:473, pB:0},
+    {id:'moknob', name:'マルチコネクタアウターノブボルト', code:'SGF-0555', codeB:'', ins:14.5, p:572, pB:0},
+    {id:'mow', name:'マルチコネクタアウターW', code:'SGF-0090', codeB:'SGF-0254', ins:14.5, p:605, pB:759},
+    {id:'mol', name:'マルチコネクタアウターロング', code:'SGF-0490', codeB:'', ins:14.5, p:715, pB:0},
+    {id:'moh', name:'マルチコネクタアウターハード', code:'SGF-0491', codeB:'', ins:14.5, p:440, pB:0},
+    {id:'str', name:'ストレートコネクタ', code:'SGF-0649', codeB:'', ins:14.5, p:616, pB:0, est:true},
+    {id:'stri', name:'ストレートコネクタインナー', code:'SGF-0014', codeB:'SGF-0262', ins:14.5, p:528, pB:682, est:true},
+    {id:'stro', name:'ストレートコネクタアウター', code:'SGF-0360', codeB:'', ins:14.5, p:616, pB:0, est:true},
+    {id:'ai', name:'アングルコネクタインナー', code:'SGF-0010', codeB:'SGF-0245', ins:14.5, p:517, pB:660},
+    {id:'aig', name:'アングルコネクタインナー グレー塗装', code:'SGF-0532', codeB:'', ins:14.5, p:704, pB:0},
+    {id:'ao', name:'アングルコネクタアウター', code:'SGF-0070', codeB:'SGF-0246', ins:14.5, p:396, pB:495},
+    {id:'aog', name:'アングルコネクタアウター グレー塗装', code:'SGF-0533', codeB:'', ins:14.5, p:561, pB:0},
+    {id:'adx', name:'アングルコネクタDX', code:'SGF-0017', codeB:'', ins:14.5, p:737, pB:0},
+    {id:'aoe', name:'アングルコネクタアウターE', code:'SGF-0646', codeB:'', ins:14.5, p:506, pB:0},
+    {id:'fi', name:'フリーコネクタインナー', code:'SGF-0013', codeB:'SGF-0247', ins:14.5, p:869, pB:1100},
+    {id:'fig', name:'フリーコネクタインナー グレー塗装', code:'SGF-0536', codeB:'', ins:14.5, p:1144, pB:0},
+    {id:'fo', name:'フリーコネクタアウター', code:'SGF-0071', codeB:'SGF-0248', ins:14.5, p:737, pB:935},
+    {id:'fihm', name:'フリーコネクタインナーHM', code:'SGF-0100', codeB:'', ins:14.5, p:935, pB:0, est:true},
+    {id:'fihf', name:'フリーコネクタインナーHF', code:'SGF-0099', codeB:'', ins:14.5, p:935, pB:0, est:true},
+    {id:'fohm', name:'フリーコネクタアウターHM', code:'SGF-0095', codeB:'', ins:14.5, p:759, pB:0, est:true},
+    {id:'fohf', name:'フリーコネクタアウターHF', code:'SGF-0096', codeB:'', ins:14.5, p:759, pB:0, est:true},
+    {id:'fivm', name:'フリーコネクタインナーVM', code:'SGF-0101', codeB:'', ins:14.5, p:891, pB:0},
+    {id:'fivm1', name:'フリーコネクタインナーVM1', code:'SGF-0102', codeB:'', ins:14.5, p:891, pB:0},
+    {id:'fovm', name:'フリーコネクタアウターVM', code:'SGF-0097', codeB:'', ins:14.5, p:759, pB:0},
+    {id:'fovm1', name:'フリーコネクタアウターVM1', code:'SGF-0098', codeB:'', ins:14.5, p:759, pB:0},
+    {id:'45i', name:'45度コネクタインナー', code:'SGF-0015', codeB:'SGF-0251', ins:14.5, p:363, pB:462},
+    {id:'45ig', name:'45度コネクタインナー グレー塗装', code:'SGF-0539', codeB:'', ins:14.5, p:539, pB:0},
+    {id:'45o', name:'45度コネクタアウター', code:'SGF-0072', codeB:'SGF-0252', ins:14.5, p:297, pB:363},
+    {id:'45og', name:'45度コネクタアウター グレー塗装', code:'SGF-0540', codeB:'', ins:14.5, p:473, pB:0},
+    {id:'10i', name:'10度コネクタインナー', code:'SGF-0019', codeB:'SGF-0253', ins:14.5, p:385, pB:484},
+    {id:'5i', name:'5度コネクタインナー', code:'SGF-0332', codeB:'', ins:14.5, p:418, pB:0},
+    {id:'135i', name:'135度コネクタインナー', code:'SGF-0333', codeB:'', ins:14.5, p:550, pB:0, est:true},
+    {id:'135o', name:'135度コネクタアウター', code:'SGF-0334', codeB:'', ins:14.5, p:506, pB:0, est:true},
+    {id:'nli', name:'NLコネクタインナー', code:'SGF-0091', codeB:'SGF-0244', ins:14.5, p:506, pB:638},
+    {id:'nhi', name:'NHコネクタインナー', code:'SGF-0527', codeB:'', ins:14.5, p:374, pB:0, est:true},
+    {id:'pin', name:'ピンコネクタ', code:'SGF-0103', codeB:'', ins:14.5, p:363, pB:0},
+    {id:'pal', name:'パレットコネクタN', code:'SGF-0104', codeB:'', ins:14.5, p:484, pB:0},
+  ],
+  S: [
+    {id:'none', name:'（なし）', code:'', codeB:'', ins:0, p:0, pB:0},
+    {id:'mi', name:'マルチコネクタインナーS', code:'SGF-0048', codeB:'SGF-0263', ins:10, p:198, pB:264},
+    {id:'mir', name:'マルチコネクタインナーSR', code:'SGF-0051', codeB:'SGF-0265', ins:10, p:319, pB:396},
+    {id:'mo', name:'マルチコネクタアウターS', code:'SGF-0152', codeB:'SGF-0264', ins:10, p:198, pB:242},
+    {id:'sw', name:'マルチコネクタアウターSW', code:'SGF-0155', codeB:'SGF-0277', ins:10, p:374, pB:462},
+    {id:'striS', name:'ストレートコネクタインナーS', code:'SGF-0163', codeB:'', ins:10, p:616, pB:0, est:true},
+    {id:'ns', name:'マルチコネクタインナーN-S', code:'SGF-0526', codeB:'', ins:10, p:374, pB:0, est:true},
+    {id:'lsv', name:'リンクコネクタSV', code:'SGF-0052', codeB:'SGF-0269', ins:10, p:572, pB:726},
+    {id:'lsh', name:'リンクコネクタSH', code:'SGF-0164', codeB:'SGF-0270', ins:10, p:891, pB:1122},
+    {id:'ai', name:'アングルコネクタインナーS', code:'SGF-0054', codeB:'SGF-0267', ins:10, p:429, pB:528},
+    {id:'ao', name:'アングルコネクタアウターS', code:'SGF-0156', codeB:'SGF-0268', ins:10, p:352, pB:462},
+    {id:'45i', name:'45度コネクタインナーS', code:'SGF-0053', codeB:'SGF-0274', ins:10, p:319, pB:429},
+    {id:'45o', name:'45度コネクタアウターS', code:'SGF-0153', codeB:'SGF-0275', ins:10, p:319, pB:440},
+    {id:'45sn', name:'45度コネクタアウターS-N', code:'SGF-0154', codeB:'SGF-0276', ins:10, p:330, pB:440},
+    {id:'sn', name:'S-Nコネクタアウター', code:'SGF-0047', codeB:'SGF-0266', ins:10, p:308, pB:374},
+    {id:'sni', name:'S-Nコネクタインナー', code:'SGF-0357', codeB:'', ins:10, p:264, pB:0},
+    {id:'pinS', name:'ピンコネクタS', code:'SGF-0162', codeB:'', ins:10, p:308, pB:0},
+  ],
+  G: [
+    {id:'none', name:'（なし）', code:'', codeB:'', ins:0, p:0, pB:0},
+    {id:'mi', name:'マルチコネクタインナーG', code:'SGF-0294', codeB:'', ins:21.5, p:429, pB:0},
+    {id:'mig', name:'マルチコネクタインナーG グレー塗装', code:'SGF-0543', codeB:'', ins:21.5, p:561, pB:0},
+    {id:'mo', name:'マルチコネクタアウターG', code:'SGF-0295', codeB:'', ins:21.5, p:319, pB:0},
+    {id:'gn', name:'マルチコネクタインナーG-N', code:'SGF-0296', codeB:'', ins:21.5, p:462, pB:0},
+    {id:'gno', name:'マルチコネクタアウターG-N', code:'SGF-0297', codeB:'', ins:21.5, p:363, pB:0},
+    {id:'striG', name:'ストレートコネクタインナーG', code:'SGF-0303', codeB:'', ins:21.5, p:616, pB:0, est:true},
+    {id:'ao', name:'アングルコネクタアウターG', code:'SGF-0298', codeB:'', ins:21.5, p:550, pB:0},
+    {id:'fi', name:'フリーコネクタインナーG', code:'SGF-0299', codeB:'', ins:21.5, p:1012, pB:0},
+    {id:'45o', name:'45度コネクタアウターG', code:'SGF-0300', codeB:'', ins:21.5, p:528, pB:0},
+    {id:'gom', name:'マルチコネクタアウターGM', code:'SGF-0301', codeB:'', ins:21.5, p:770, pB:0},
+    {id:'gomg', name:'マルチコネクタアウターGM グレー塗装', code:'SGF-0545', codeB:'', ins:21.5, p:913, pB:0},
+    {id:'goh', name:'マルチコネクタアウターGH', code:'SGF-0302', codeB:'', ins:21.5, p:682, pB:0},
+  ],
+};
+
+// フレーム品種（gfun_products.json と同期）。std のみ mm単価既知、他は価格要確認
+const FR = {
+  N: [
+    {id:'std',   name:'GFunフレームN',        code:'SGF-0220', codeB:'SGF-0221'},
+    {id:'nw',    name:'GFunフレームNW',       code:'SGF-0223', codeB:'SGF-0352'},
+    {id:'nw2',   name:'GFunフレームNW2',      code:'SGF-0691', codeB:''},
+    {id:'nl',    name:'GFunフレームNL',       code:'SGF-0224', codeB:'SGF-0336'},
+    {id:'nls',   name:'G-FunフレームNLS',     code:'SGF-0687', codeB:''},
+    {id:'nf50',  name:'GFunフレームNF50',     code:'SGF-0226', codeB:'SGF-0510'},
+    {id:'nf35',  name:'GFunフレームNF35',     code:'SGF-0227', codeB:'SGF-0511'},
+    {id:'nf35f', name:'GFunフレームNF35フラット', code:'SGF-0697', codeB:''},
+    {id:'nt',    name:'GFunフレームNT',       code:'SGF-0228', codeB:''},
+    {id:'nh',    name:'GFunフレームNH',       code:'SGF-0229', codeB:''},
+    {id:'ndin',  name:'GFunフレームNDIN',     code:'SGF-0230', codeB:''},
+    {id:'np100', name:'GFunフレームNP100',    code:'SGF-0231', codeB:''},
+    {id:'n2f',   name:'GFunフレームN2F',      code:'SGF-0695', codeB:''},
+    {id:'n3f',   name:'GFunフレームN3F',      code:'SGF-0696', codeB:''},
+    {id:'8way',  name:'GFunフレーム8WAY',     code:'SGF-0698', codeB:''},
+    {id:'roll',  name:'GFunローラーフレームN', code:'SGF-0693', codeB:''},
+    {id:'rod10', name:'GFunφ10 丸棒',         code:'SGF-0710', codeB:''},
+  ],
+  S: [
+    {id:'std',   name:'GFunフレームS',        code:'SGF-0232', codeB:'SGF-0233'},
+    {id:'ss',    name:'GFunフレームSS',       code:'SGF-0235', codeB:'SGF-0353'},
+    {id:'sf35',  name:'GFunフレームSF35',     code:'SGF-0236', codeB:''},
+    {id:'sf22',  name:'GFunフレームSF22',     code:'SGF-0237', codeB:''},
+    {id:'sh',    name:'GFunフレームSH',       code:'SGF-0238', codeB:''},
+    {id:'sw',    name:'GFunフレームSW',       code:'SGF-0239', codeB:'SGF-0354'},
+    {id:'sp100', name:'GFunフレームSP100',    code:'SGF-0513', codeB:''},
+    {id:'roll',  name:'GFunローラーフレームS', code:'SGF-0673', codeB:''},
+  ],
+  G: [
+    {id:'std',   name:'GFunフレームG',        code:'SGF-0289', codeB:'SGF-0291'},
+    {id:'gl',    name:'GFunフレームGL',       code:'SGF-0704', codeB:''},
+    {id:'gw',    name:'GFunフレームGW',       code:'SGF-0705', codeB:''},
+    {id:'gh',    name:'GFunフレームGH',       code:'SGF-0706', codeB:''},
+  ],
+};
+function getFR(series, prod) {
+  return FR[series].find(x=>x.id===(prod||'std')) || FR[series][0];
+}
+
+// 端部パーツ（キャップ/フット/キャスター）: 差込0mm＝ℓ寸法に影響しない
+// 出典: G-Funオンラインストア 2026-07-04時点
+const EP = {
+  N: [
+    {id:'ep_capi',   cat:'cap',    name:'インナーキャップ',                 code:'SGF-0034', codeB:'SGF-0215', ins:0, p:88,   pB:165},
+    {id:'ep_capo',   cat:'cap',    name:'アウターキャップ',                 code:'SGF-0487', codeB:'',         ins:0, p:132,  pB:0},
+    {id:'ep_capm',   cat:'cap',    name:'金属端面キャップ',                 code:'SGF-0035', codeB:'',         ins:0, p:484,  pB:0},
+    {id:'ep_foot',   cat:'foot',   name:'フットM8',                        code:'SGF-0021', codeB:'',         ins:0, p:539,  pB:0},
+    {id:'ep_footc',  cat:'foot',   name:'フットコネクタN M8',               code:'SGF-0020', codeB:'',         ins:0, p:198,  pB:0},
+    {id:'ep_footc12',cat:'foot',   name:'フットコネクタN M12',              code:'SGF-0123', codeB:'SGF-0284', ins:0, p:352,  pB:451},
+    {id:'ep_footcnh',cat:'foot',   name:'フットコネクタNH M12',             code:'SGF-0528', codeB:'',         ins:0, p:374,  pB:0},
+    {id:'ep_adjb',   cat:'foot',   name:'アジャスタB M8-50 ※要フットコネクタ', code:'SGF-0125', codeB:'',       ins:0, p:253,  pB:0},
+    {id:'ep_adja',   cat:'foot',   name:'アジャスタA M8-60 ※要フットコネクタ', code:'SGF-0124', codeB:'',       ins:0, p:1001, pB:0},
+    {id:'ep_rubf',   cat:'foot',   name:'ラバーフットインナーN',             code:'SGF-0361', codeB:'',         ins:0, p:209,  pB:0},
+    {id:'ep_cas50',  cat:'caster', name:'キャスターNφ50 ゴム',              code:'SGF-0129', codeB:'',         ins:0, p:484,  pB:0},
+    {id:'ep_cas50b', cat:'caster', name:'キャスターNφ50 ゴム ブレーキ付',    code:'SGF-0023', codeB:'',         ins:0, p:550,  pB:0},
+    {id:'ep_cas100b',cat:'caster', name:'キャスターNφ100 ゴム ブレーキ付',   code:'SGF-0479', codeB:'',         ins:0, p:1617, pB:0},
+  ],
+  S: [
+    {id:'ep_capi',   cat:'cap',    name:'インナーキャップS',                code:'SGF-0065', codeB:'SGF-0216', ins:0, p:88,   pB:165},
+    {id:'ep_foot',   cat:'foot',   name:'フットM6',                        code:'SGF-0056', codeB:'',         ins:0, p:374,  pB:0},
+    {id:'ep_footc',  cat:'foot',   name:'フットコネクタS M6',               code:'SGF-0055', codeB:'',         ins:0, p:242,  pB:0},
+    {id:'ep_cas50',  cat:'caster', name:'キャスターSφ50 ゴム',              code:'SGF-0205', codeB:'',         ins:0, p:638,  pB:0},
+    {id:'ep_cas50b', cat:'caster', name:'キャスターSφ50 ゴム ブレーキ付',    code:'SGF-0058', codeB:'',         ins:0, p:693,  pB:0},
+  ],
+  G: [
+    {id:'ep_capi',   cat:'cap',    name:'インナーキャップG',                code:'SGF-0292', codeB:'SGF-0293', ins:0, p:99,   pB:143},
+    {id:'ep_footc16',cat:'foot',   name:'フットコネクタG M16',              code:'SGF-0305', codeB:'SGF-0306', ins:0, p:297,  pB:374},
+    {id:'ep_adja16', cat:'foot',   name:'アジャスタA M16-70 ※要フットコネクタ',code:'SGF-0307', codeB:'',       ins:0, p:792,  pB:0},
+    {id:'ep_cas100', cat:'caster', name:'キャスターGφ100 ゴム',             code:'SGF-0308', codeB:'',         ins:0, p:1628, pB:0},
+    {id:'ep_cas100b',cat:'caster', name:'キャスターGφ100 ゴム ブレーキ付',   code:'SGF-0309', codeB:'',         ins:0, p:1749, pB:0},
+  ],
+};
+
+// パネル扉用パーツ（蝶番）出典: 同ストア パネル扉カテゴリ
+const DOOR_PARTS = {
+  doorN: [ {code:'SGF-0212', name:'抜き差し蝶番L',   p:1221}, {code:'SGF-0213', name:'抜き差し蝶番R',   p:1221} ],
+  doorS: [ {code:'SGF-0503', name:'抜き差し蝶番S-L', p:979},  {code:'SGF-0504', name:'抜き差し蝶番S-R', p:979}  ],
+};
+// 中間パーツ（クロス・ダブル・ブラケット・ナット類 = 端部以外に取付、ℓ寸法に影響なし）
+const ACC = {
+  N: [
+    {id:'a0', name:'ダブルコネクタP15', code:'SGF-0008', p:297},
+    {id:'a1', name:'クロスコネクタ', code:'SGF-0011', p:429},
+    {id:'a2', name:'ポイントコネクタ', code:'SGF-0012', p:319},
+    {id:'a3', name:'ブリッジコネクタ', code:'SGF-0016', p:418},
+    {id:'a4', name:'パラレルホルダ', code:'SGF-0018', p:605},
+    {id:'a5', name:'クロスコネクタ回転', code:'SGF-0074', p:737},
+    {id:'a6', name:'コーナーブラケット', code:'SGF-0075', p:363},
+    {id:'a7', name:'ダブルコネクタ', code:'SGF-0092', p:297},
+    {id:'a8', name:'ダブルコネクタC', code:'SGF-0093', p:297},
+    {id:'a9', name:'ダブルコネクタP19.5C', code:'SGF-0094', p:330},
+    {id:'a10', name:'Lスロットコネクタピース', code:'SGF-0135', p:165},
+    {id:'a11', name:'EasyナットL M5', code:'SGF-0136', p:88},
+    {id:'a12', name:'EasyナットL M4', code:'SGF-0137', p:88},
+    {id:'a13', name:'GFSFコネクタN-S', code:'SGF-0190', p:132},
+    {id:'a14', name:'EasyナットS M4', code:'SGF-0206', p:77},
+    {id:'a15', name:'Lスロットコネクタピース 100mm', code:'SGF-0207', p:286},
+    {id:'a16', name:'マルチクランパー', code:'SGF-0211', p:2640},
+    {id:'a17', name:'ハンドルコネクタ', code:'SGF-0214', p:704},
+    {id:'a18', name:'ポイントコネクタ B', code:'SGF-0249', p:429},
+    {id:'a19', name:'コーナーブラケット B', code:'SGF-0250', p:462},
+    {id:'a20', name:'クロスコネクタ B', code:'SGF-0255', p:517},
+    {id:'a21', name:'ダブルコネクタP15 B', code:'SGF-0256', p:374},
+    {id:'a22', name:'ダブルコネクタ B', code:'SGF-0257', p:374},
+    {id:'a23', name:'ダブルコネクタC B', code:'SGF-0258', p:374},
+    {id:'a24', name:'ダブルコネクタP19.5C B', code:'SGF-0259', p:396},
+    {id:'a25', name:'ブリッジコネクタ B', code:'SGF-0260', p:517},
+    {id:'a26', name:'パラレルホルダ B', code:'SGF-0261', p:759},
+    {id:'a27', name:'ポイントコネクタロング', code:'SGF-0304', p:616},
+    {id:'a28', name:'STナットS M3', code:'SGF-0321', p:66},
+    {id:'a29', name:'STナットS M4', code:'SGF-0322', p:66},
+    {id:'a30', name:'STナットS M5', code:'SGF-0323', p:66},
+    {id:'a31', name:'STナットS M6', code:'SGF-0324', p:66},
+    {id:'a32', name:'STナットL M4', code:'SGF-0325', p:67},
+    {id:'a33', name:'STナットL M5', code:'SGF-0326', p:67},
+    {id:'a34', name:'STナットL M6', code:'SGF-0327', p:67},
+    {id:'a35', name:'STナットL M8', code:'SGF-0328', p:67},
+    {id:'a36', name:'コネクタノブボルト', code:'SGF-0363', p:253},
+    {id:'a37', name:'ヒンジコネクタストッパハード ノブボルト', code:'SGF-0365', p:759},
+    {id:'a38', name:'EasyナットS M3', code:'SGF-0471', p:77},
+    {id:'a39', name:'EasyナットS M5', code:'SGF-0472', p:77},
+    {id:'a40', name:'EasyナットS M6', code:'SGF-0473', p:77},
+    {id:'a41', name:'EasyナットL M6', code:'SGF-0474', p:88},
+    {id:'a42', name:'EasyナットL M8', code:'SGF-0475', p:88},
+    {id:'a43', name:'ナットスベリ止めキャップS(50個パック)', code:'SGF-0485', p:781},
+    {id:'a44', name:'ナットスベリ止めキャップL(50個パック)', code:'SGF-0486', p:946},
+    {id:'a45', name:'ダブルコネクタP15 56mm', code:'SGF-0488', p:539},
+    {id:'a46', name:'Lスロットコネクタピース 50mm', code:'SGF-0494', p:297},
+    {id:'a47', name:'ポイントコネクタクロス', code:'SGF-0514', p:880},
+    {id:'a48', name:'パイプホルダ', code:'SGF-0515', p:594},
+    {id:'a49', name:'ハンドル', code:'SGF-0522', p:1067},
+    {id:'a50', name:'六角ナットM8', code:'SGF-0523', p:44},
+    {id:'a51', name:'セットスクリューM8×12', code:'SGF-0524', p:33},
+    {id:'a52', name:'マルチコネクタインナーR グレー塗装', code:'SGF-0530', p:539},
+    {id:'a53', name:'ポイントコネクタ グレー塗装', code:'SGF-0538', p:473},
+    {id:'a54', name:'クロスコネクタ グレー塗装', code:'SGF-0541', p:605},
+    {id:'a55', name:'ブリッジコネクタ グレー塗装', code:'SGF-0542', p:594},
+    {id:'a56', name:'フリーコネクタサイドF', code:'SGF-0650', p:913},
+    {id:'a57', name:'フリーコネクタサイドM', code:'SGF-0651', p:913},
+    {id:'a58', name:'φ10 ガイドクランパー', code:'SGF-0716', p:572},
+  ],
+  S: [
+    {id:'a0', name:'ダブルコネクタS', code:'SGF-0049', p:220},
+    {id:'a1', name:'クロスコネクタS', code:'SGF-0050', p:330},
+    {id:'a2', name:'ポイントコネクタS', code:'SGF-0068', p:264},
+    {id:'a3', name:'クロスコネクタS-N', code:'SGF-0157', p:330},
+    {id:'a4', name:'ダブルコネクタS-N', code:'SGF-0158', p:286},
+    {id:'a5', name:'クロスコネクタ回転S', code:'SGF-0159', p:759},
+    {id:'a6', name:'ポイントコネクタS-N', code:'SGF-0160', p:319},
+    {id:'a7', name:'コーナーブラケットS', code:'SGF-0161', p:429},
+    {id:'a8', name:'SSスロットコネクタピース', code:'SGF-0181', p:176},
+    {id:'a9', name:'EasyナットSS M4', code:'SGF-0189', p:77},
+    {id:'a10', name:'GFSFコネクタS-S', code:'SGF-0204', p:121},
+    {id:'a11', name:'ポイントコネクタS B', code:'SGF-0271', p:319},
+    {id:'a12', name:'ポイントコネクタS-N B', code:'SGF-0272', p:429},
+    {id:'a13', name:'コーナーブラケットS B', code:'SGF-0273', p:528},
+    {id:'a14', name:'クロスコネクタS B', code:'SGF-0278', p:429},
+    {id:'a15', name:'クロスコネクタS-N B', code:'SGF-0279', p:429},
+    {id:'a16', name:'ダブルコネクタS B', code:'SGF-0280', p:275},
+    {id:'a17', name:'STナットSS M3', code:'SGF-0318', p:55},
+    {id:'a18', name:'STナットSS M4', code:'SGF-0319', p:55},
+    {id:'a19', name:'STナットSS M5', code:'SGF-0320', p:55},
+    {id:'a20', name:'リンクコネクタS-N', code:'SGF-0358', p:836},
+    {id:'a21', name:'コネクタノブボルトS', code:'SGF-0364', p:253},
+    {id:'a22', name:'EasyナットSS M3', code:'SGF-0469', p:77},
+    {id:'a23', name:'EasyナットSS M5', code:'SGF-0470', p:77},
+    {id:'a24', name:'ナットスベリ止めキャップSS(50個パック)', code:'SGF-0484', p:781},
+    {id:'a25', name:'ダブルコネクタS 40mm', code:'SGF-0500', p:418},
+    {id:'a26', name:'リンクコネクタサイドS-M', code:'SGF-0652', p:913},
+    {id:'a27', name:'φ10 ガイドクランパーS', code:'SGF-0717', p:572},
+  ],
+  G: [
+  ],
+};
+const PANEL_CAT_URL = 'https://store.g-fun.jp/item/categorylist.php?Category=パネル';
+
+function getCN(series, id) {
+  return CN[series].find(c=>c.id===id) || EP[series].find(c=>c.id===id) || CN[series][0];
+}
+function getIns(series, id) { return getCN(series, id).ins; }
+
+// ---------- 状態 ----------
+let frames = [], nextId = 1, selId = null, selEnd = null; // selEnd: 'l'|'r'|null（選択中のコネクタ端）
+let panels = [], nextPid = 1, selPid = null;              // パネル/パネル扉
+let pDrawSt = null;                                        // パネル描画の1点目
+let tool = 'select';
+let drawSt = null;              // {x,y,z} 描画始点
+let mw = {x:0, y:0, z:0};       // マウスのワールド座標
+let snapSz = 10;
+let showGrid = true, showDim = true;
+let labelScale = 0.9;   // 寸法ラベル文字サイズ（mm/px）
+let dimMode = 'prod';   // 'prod'=品名＋長さ | 'full'=長さ＋ℓ | 'len'=長さのみ | 'name'=名称のみ
+let undoStack = [];
+let bomOpen = true;
+
+// 作業平面
+let planeMode = 'XZ';           // 'XZ' | 'XY' | 'YZ'
+let planeAnchor = new THREE.Vector3(0,0,0);
+const PLANE_N = {
+  XZ: new THREE.Vector3(0,1,0),
+  XY: new THREE.Vector3(0,0,1),
+  YZ: new THREE.Vector3(1,0,0),
+};
+
+// カメラ（軌道）
+let camTarget = new THREE.Vector3(400, 200, 300);
+let camR = 2200, camTheta = Math.PI/4, camPhi = Math.PI/3;
+
+// マウス状態
+let mouseMode = null;           // 'orbit' | 'pan' | 'drag' | null
+let mSt = null;                 // マウス開始 {x,y}
+let camSt = null;               // カメラ開始状態
+let dragPlane = null, dragStartPt = null, dragF0 = null, dragShiftY = false, dragMoved = false;
+
+// ---------- Three.js セットアップ ----------
+const area = document.getElementById('canvasArea');
+const canvas = document.getElementById('cad3d');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, preserveDrawingBuffer:true});
+renderer.setPixelRatio(window.devicePixelRatio || 1);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a1a1a);
+const camera = new THREE.PerspectiveCamera(50, 1, 1, 100000);
+const raycaster = new THREE.Raycaster();
+
+// ライト
+scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+const dl = new THREE.DirectionalLight(0xffffff, 0.7);
+dl.position.set(1500, 2500, 1000);
+scene.add(dl);
+const dl2 = new THREE.DirectionalLight(0xffffff, 0.25);
+dl2.position.set(-1200, 800, -1500);
+scene.add(dl2);
+
+// グリッド＆軸
+const gridGroup = new THREE.Group();
+const grid = new THREE.GridHelper(4000, 40, 0x3a5a3a, 0x2c2c2c); // 100mm間隔
+gridGroup.add(grid);
+function axisLine(dir, color, len) {
+  const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), dir.clone().multiplyScalar(len)]);
+  return new THREE.Line(g, new THREE.LineBasicMaterial({color}));
+}
+gridGroup.add(axisLine(new THREE.Vector3(1,0,0), 0xe06060, 600));
+gridGroup.add(axisLine(new THREE.Vector3(0,1,0), 0x60d060, 600));
+gridGroup.add(axisLine(new THREE.Vector3(0,0,1), 0x6090e0, 600));
+scene.add(gridGroup);
+
+// 作業平面の可視化
+const wpMat = new THREE.MeshBasicMaterial({color:0x2a8a50, transparent:true, opacity:0.07, side:THREE.DoubleSide, depthWrite:false});
+const wpMesh = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), wpMat);
+wpMesh.visible = false;
+scene.add(wpMesh);
+function updateWorkplane() {
+  wpMesh.rotation.set(0,0,0);
+  if (planeMode==='XZ') wpMesh.rotation.x = -Math.PI/2;
+  else if (planeMode==='YZ') wpMesh.rotation.y = Math.PI/2;
+  wpMesh.position.copy(planeAnchor);
+  wpMesh.visible = (tool==='frame' || tool==='panel');
+}
+
+// プレビュー線
+const pvGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+const pvLine = new THREE.Line(pvGeo, new THREE.LineDashedMaterial({color:0xf0a500, dashSize:30, gapSize:18}));
+pvLine.visible = false;
+scene.add(pvLine);
+const pvDot = new THREE.Mesh(new THREE.SphereGeometry(9, 12, 12), new THREE.MeshBasicMaterial({color:0xf0a500}));
+pvDot.visible = false;
+scene.add(pvDot);
+const snapDot = new THREE.Mesh(new THREE.SphereGeometry(11, 12, 12), new THREE.MeshBasicMaterial({color:0xff50ff}));
+snapDot.visible = false;
+scene.add(snapDot);
+
+// フレーム表示グループ
+let frameGroup = new THREE.Group();
+scene.add(frameGroup);
+
+// ---------- カメラ制御 ----------
+function updateCam() {
+  camPhi = Math.max(0.02, Math.min(Math.PI-0.02, camPhi));
+  camR = Math.max(150, Math.min(40000, camR));
+  camera.position.set(
+    camTarget.x + camR * Math.sin(camPhi) * Math.sin(camTheta),
+    camTarget.y + camR * Math.cos(camPhi),
+    camTarget.z + camR * Math.sin(camPhi) * Math.cos(camTheta)
+  );
+  camera.lookAt(camTarget);
+}
+function setView(v) {
+  if (v==='iso')   { camTheta = Math.PI/4;  camPhi = Math.PI/3; }
+  if (v==='top')   { camTheta = 0;          camPhi = 0.02; }
+  if (v==='front') { camTheta = 0;          camPhi = Math.PI/2; }
+  if (v==='side')  { camTheta = Math.PI/2;  camPhi = Math.PI/2; }
+  updateCam();
+}
+function zoomFit() {
+  if (!frames.length && !panels.length) { camTarget.set(400,200,300); camR = 2200; updateCam(); return; }
+  const box = new THREE.Box3();
+  frames.concat(panels).forEach(f=>{
+    box.expandByPoint(new THREE.Vector3(f.x1,f.y1,f.z1));
+    box.expandByPoint(new THREE.Vector3(f.x2,f.y2,f.z2));
+  });
+  box.getCenter(camTarget);
+  const size = box.getSize(new THREE.Vector3()).length();
+  camR = Math.max(600, size * 1.5);
+  updateCam();
+}
+
+// ---------- リサイズ ----------
+function resize3d() {
+  const w = area.clientWidth, h = area.clientHeight;
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize3d);
+
+// ---------- 座標ユーティリティ ----------
+const snap = v => Math.round(v / snapSz) * snapSz;
+function snapV(p) { return {x:snap(p.x), y:snap(p.y), z:snap(p.z)}; }
+function ndcFromEvent(e) {
+  const r = canvas.getBoundingClientRect();
+  return {
+    mx: e.clientX - r.left, my: e.clientY - r.top,
+    nx: (e.clientX - r.left) / r.width * 2 - 1,
+    ny: -((e.clientY - r.top) / r.height * 2 - 1),
+  };
+}
+function planePoint(nx, ny, anchor, mode) {
+  raycaster.setFromCamera(new THREE.Vector2(nx, ny), camera);
+  const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(PLANE_N[mode||planeMode], anchor||planeAnchor);
+  const pt = new THREE.Vector3();
+  return raycaster.ray.intersectPlane(plane, pt) ? pt : null;
+}
+function snapEndpoint(mx, my) { // 既存端点への画面スナップ
+  const r = canvas.getBoundingClientRect();
+  let best = null, bd = 16;
+  frames.forEach(f=>{
+    [[f.x1,f.y1,f.z1],[f.x2,f.y2,f.z2]].forEach(p=>{
+      const v = new THREE.Vector3(p[0],p[1],p[2]).project(camera);
+      if (v.z > 1) return;
+      const sx = (v.x+1)/2*r.width, sy = (-v.y+1)/2*r.height;
+      const d = Math.hypot(sx-mx, sy-my);
+      if (d < bd) { bd = d; best = {x:p[0], y:p[1], z:p[2]}; }
+    });
+  });
+  return best;
+}
+function axisLock(from, to) { // Shift: 最大成分の軸のみ残す
+  const dx = to.x-from.x, dy = to.y-from.y, dz = to.z-from.z;
+  const ax = Math.abs(dx), ay = Math.abs(dy), az = Math.abs(dz);
+  if (ax >= ay && ax >= az) return {x:to.x, y:from.y, z:from.z};
+  if (ay >= ax && ay >= az) return {x:from.x, y:to.y, z:from.z};
+  return {x:from.x, y:from.y, z:to.z};
+}
+
+// ---------- 計算 ----------
+function fLen(f) { return Math.round(Math.hypot(f.x2-f.x1, f.y2-f.y1, f.z2-f.z1)); }
+function calcEll(f) { return fLen(f) - getIns(f.series,f.lcn) - getIns(f.series,f.rcn); }
+
+// ---------- シーン再構築 ----------
+function disposeGroup(g) {
+  g.traverse(o=>{
+    if (o.geometry) o.geometry.dispose();
+    if (o.material) {
+      if (o.material.map) o.material.map.dispose();
+      o.material.dispose();
+    }
+  });
+}
+function makeLabel(text, colorCss) {
+  const fs = 44, pad = 12;
+  const c = document.createElement('canvas');
+  const m = c.getContext('2d');
+  m.font = `bold ${fs}px sans-serif`;
+  c.width = Math.ceil(m.measureText(text).width) + pad*2;
+  c.height = fs + pad*2;
+  const x = c.getContext('2d');
+  x.font = `bold ${fs}px sans-serif`;
+  x.fillStyle = 'rgba(0,0,0,0.62)';
+  x.fillRect(0, 0, c.width, c.height);
+  x.fillStyle = colorCss;
+  x.textBaseline = 'middle';
+  x.fillText(text, pad, c.height/2);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c), depthTest:false}));
+  const k = labelScale; // mm / canvas-px（表示設定の文字サイズ）
+  sp.scale.set(c.width*k, c.height*k, 1);
+  return sp;
+}
+// コネクタ種類 → 形状カテゴリ
+const CAT_OVERRIDE = { // 頭文字で判定できないID
+  nli:'multi', sn:'multi', sni:'multi', sw:'multi',
+  gn:'multi', gno:'multi', gom:'multi', goh:'multi',
+  lsv:'angle', lsh:'angle', pal:'angle',
+  pin:'deg', pinS:'deg',
+};
+function connCat(id, series) {
+  if (!id || id === 'none') return 'none';
+  if (id.slice(0,3) === 'ep_') {       // 端部パーツ
+    const e = EP[series] && EP[series].find(x=>x.id===id);
+    return e ? e.cat : 'none';
+  }
+  if (CAT_OVERRIDE[id]) return CAT_OVERRIDE[id];
+  if (id[0] === 'm') return 'multi';   // マルチ系 → 円筒スリーブ
+  if (id[0] === 'a') return 'angle';   // アングル系 → 立方体
+  if (id[0] === 'f') return 'free';    // フリー系 → 球
+  return 'deg';                        // 45/10/5度系 → 円錐
+}
+// コネクタの3D形状を追加
+function addConnectorMesh(f, end, dir, s) {
+  const id = end === 'l' ? f.lcn : f.rcn;
+  const cat = connCat(id, f.series);
+  const px = end === 'l' ? f.x1 : f.x2;
+  const py = end === 'l' ? f.y1 : f.y2;
+  const pz = end === 'l' ? f.z1 : f.z2;
+  const out = dir.clone().multiplyScalar(end === 'l' ? -1 : 1); // 端の外向き
+  const w = s.w;
+  const isSel = (f.id === selId && selEnd === end);
+  const epCol = (cat==='cap'||cat==='foot'||cat==='caster') ? 0x3f4448 : 0x62666a;
+  const m = new THREE.MeshLambertMaterial({color: cat === 'none' ? 0xe74c3c : epCol});
+  if (isSel) { m.emissive = new THREE.Color(0xf0a500); m.emissiveIntensity = 0.7; }
+  let mesh;
+  if (cat === 'cap') { // キャップ: 端面の薄い円盤
+    mesh = new THREE.Mesh(new THREE.CylinderGeometry(w*0.55, w*0.55, w*0.22, 16), m);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), out);
+    mesh.position.set(px + out.x*w*0.1, py + out.y*w*0.1, pz + out.z*w*0.1);
+  } else if (cat === 'foot') { // フット/アジャスタ: 端の外側の台座
+    mesh = new THREE.Mesh(new THREE.CylinderGeometry(w*0.72, w*0.88, w*0.32, 16), m);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), out);
+    mesh.position.set(px + out.x*w*0.55, py + out.y*w*0.55, pz + out.z*w*0.55);
+  } else if (cat === 'caster') { // キャスター: 水平軸の車輪
+    let axis = new THREE.Vector3(0,1,0).cross(dir);
+    if (axis.lengthSq() < 1e-6) axis = new THREE.Vector3(1,0,0);
+    axis.normalize();
+    mesh = new THREE.Mesh(new THREE.CylinderGeometry(w*0.85, w*0.85, w*0.4, 18), m);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), axis);
+    mesh.position.set(px + out.x*w*1.0, py + out.y*w*1.0, pz + out.z*w*1.0);
+  } else if (cat === 'none') {
+    mesh = new THREE.Mesh(new THREE.SphereGeometry(Math.max(5, w*0.24), 10, 10), m);
+    mesh.position.set(px, py, pz);
+  } else if (cat === 'multi') {
+    const outer = id.length > 1 && id[1] === 'o'; // アウターは太い
+    const r2 = outer ? w*0.72 : w*0.56;
+    mesh = new THREE.Mesh(new THREE.CylinderGeometry(r2, r2, w*1.5, 18), m);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir);
+    mesh.position.set(px, py, pz);
+  } else if (cat === 'angle') {
+    mesh = new THREE.Mesh(new THREE.BoxGeometry(w*1.2, w*1.2, w*1.2), m);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(1,0,0), dir);
+    mesh.position.set(px, py, pz);
+  } else if (cat === 'free') {
+    mesh = new THREE.Mesh(new THREE.SphereGeometry(w*0.66, 16, 16), m);
+    mesh.position.set(px, py, pz);
+  } else { // deg: 円錐（先端が外向き）
+    mesh = new THREE.Mesh(new THREE.ConeGeometry(w*0.62, w*1.3, 16), m);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), out);
+    mesh.position.set(px + out.x*w*0.3, py + out.y*w*0.3, pz + out.z*w*0.3);
+  }
+  mesh.userData.fid = f.id;
+  mesh.userData.end = end;
+  frameGroup.add(mesh);
+}
+// フレームの方向角（水平角: X軸基準 / 仰角: 水平面基準）
+function frameAngles(f) {
+  const dx = f.x2-f.x1, dy = f.y2-f.y1, dz = f.z2-f.z1;
+  const az = Math.round(Math.atan2(dz, dx) * 180 / Math.PI * 10) / 10;
+  const el = Math.round(Math.atan2(dy, Math.hypot(dx, dz)) * 180 / Math.PI * 10) / 10;
+  return {az, el};
+}
+function rebuildScene() {
+  scene.remove(frameGroup);
+  disposeGroup(frameGroup);
+  frameGroup = new THREE.Group();
+  frames.forEach(f=>{
+    const s = SD[f.series];
+    const len = fLen(f);
+    if (len < 1) return;
+    const dir = new THREE.Vector3(f.x2-f.x1, f.y2-f.y1, f.z2-f.z1).normalize();
+    const mat = new THREE.MeshLambertMaterial({color: new THREE.Color(s.col[f.colorB?'B':'S'])});
+    if (f.id === selId) { mat.emissive = new THREE.Color(0xf0a500); mat.emissiveIntensity = 0.45; }
+    // パイプ（円筒＋スロット溝4本 = G-Fun実形状イメージ）
+    const grp = new THREE.Group();
+    grp.position.set((f.x1+f.x2)/2, (f.y1+f.y2)/2, (f.z1+f.z2)/2);
+    grp.quaternion.setFromUnitVectors(new THREE.Vector3(1,0,0), dir);
+    const rr = s.w / 2;
+    const pipe = new THREE.Mesh(new THREE.CylinderGeometry(rr, rr, len, 24), mat);
+    pipe.rotation.z = Math.PI / 2; // 円筒軸をX方向へ
+    pipe.userData.fid = f.id;
+    grp.add(pipe);
+    const gvCol = f.colorB ? 0x181818 : 0x8a8a8a;
+    [[rr*0.96,0],[-rr*0.96,0],[0,rr*0.96],[0,-rr*0.96]].forEach(o=>{
+      const gv = new THREE.Mesh(
+        new THREE.BoxGeometry(Math.max(1, len-2), Math.max(1.4, rr*0.18), Math.max(1.4, rr*0.18)),
+        new THREE.MeshLambertMaterial({color: gvCol})
+      );
+      gv.position.set(0, o[0], o[1]);
+      gv.userData.fid = f.id;
+      grp.add(gv);
+    });
+    frameGroup.add(grp);
+    // コネクタ形状（種類別: 円筒=マルチ / 立方体=アングル / 球=フリー / 円錐=角度付き / 赤小球=なし）
+    addConnectorMesh(f, 'l', dir, s);
+    addConnectorMesh(f, 'r', dir, s);
+    // 中間パーツマーカー（フレーム上に等間隔で表示）
+    (f.acc||[]).forEach((a, ai)=>{
+      const t = (ai + 1) / ((f.acc.length) + 1);
+      const am = new THREE.Mesh(
+        new THREE.BoxGeometry(s.w*0.7, s.w*1.35, s.w*1.35),
+        new THREE.MeshLambertMaterial({color: 0x4a5055})
+      );
+      am.position.set(f.x1+(f.x2-f.x1)*t, f.y1+(f.y2-f.y1)*t, f.z1+(f.z2-f.z1)*t);
+      am.quaternion.setFromUnitVectors(new THREE.Vector3(1,0,0), dir);
+      am.userData.fid = f.id;
+      frameGroup.add(am);
+    });
+    // 寸法ラベル（全体=showDim / フレーム単位=f.dimShow / 内容=dimMode）
+    if (showDim && f.dimShow !== false) {
+      const ell = calcEll(f);
+      let txt;
+      if (dimMode === 'prod')      txt = getFR(f.series, f.prod).name + ' ' + len + 'mm' + (ell>0 ? '' : ' ⚠');
+      else if (dimMode === 'len')  txt = len + 'mm';
+      else if (dimMode === 'name') txt = f.label || '';
+      else txt = (f.label ? f.label+' ' : '') + len + 'mm' + (ell>0 ? '  ℓ='+ell : ' ⚠');
+      if (txt) {
+        const lb = makeLabel(txt, f.id===selId ? '#f0a500' : (ell>0 ? '#dddddd' : '#f08080'));
+        lb.position.set((f.x1+f.x2)/2, (f.y1+f.y2)/2 + s.w*1.4 + 18*labelScale, (f.z1+f.z2)/2);
+        frameGroup.add(lb);
+      }
+    }
+  });
+  // パネル/パネル扉
+  panels.forEach(p=>{
+    const t = 4; // 表示厚み
+    const dx = Math.abs(p.x2-p.x1), dy = Math.abs(p.y2-p.y1), dz = Math.abs(p.z2-p.z1);
+    const mat = new THREE.MeshLambertMaterial({
+      color: p.kind==='panel' ? 0xcfe0ec : 0xf0dfc0,
+      transparent: true, opacity: 0.5, side: THREE.DoubleSide,
+    });
+    if (p.id === selPid) { mat.emissive = new THREE.Color(0xf0a500); mat.emissiveIntensity = 0.4; }
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(Math.max(dx,t), Math.max(dy,t), Math.max(dz,t)), mat);
+    mesh.position.set((p.x1+p.x2)/2, (p.y1+p.y2)/2, (p.z1+p.z2)/2);
+    mesh.userData.pid = p.id;
+    frameGroup.add(mesh);
+    if (p.kind !== 'panel') { // 扉: 蝶番マーカー2個（1点目側の縦辺）
+      const hm = new THREE.MeshLambertMaterial({color: 0x3f4448});
+      [0.22, 0.78].forEach(r=>{
+        const h = new THREE.Mesh(new THREE.BoxGeometry(10, 26, 10), hm.clone());
+        h.position.set(p.x1, p.y1 + (p.y2-p.y1)*r, p.z1 + (p.z2-p.z1)*(p.plane==='XZ'?r:0));
+        h.userData.pid = p.id;
+        frameGroup.add(h);
+      });
+    }
+    if (showDim) {
+      const s2 = panelSize(p);
+      const lb = makeLabel((p.label ? p.label+' ' : '') + (p.kind==='panel'?'パネル':'扉') + ' ' + s2.w + '×' + s2.h,
+        p.id===selPid ? '#f0a500' : '#bcd4e8');
+      lb.position.set((p.x1+p.x2)/2, (p.y1+p.y2)/2 + 30, (p.z1+p.z2)/2);
+      frameGroup.add(lb);
+    }
+  });
+  scene.add(frameGroup);
+  gridGroup.visible = showGrid;
+  updateWorkplane();
+  updateStatus();
+}
+// パネルの面内サイズ（W×H mm）
+function panelSize(p) {
+  const dx = Math.abs(p.x2-p.x1), dy = Math.abs(p.y2-p.y1), dz = Math.abs(p.z2-p.z1);
+  if (p.plane==='XZ') return {w:dx, h:dz};
+  if (p.plane==='YZ') return {w:dz, h:dy};
+  return {w:dx, h:dy};
+}
+
+// ---------- 描画ループ ----------
+function animate() {
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+}
+
+// ---------- マウスイベント ----------
+canvas.addEventListener('pointerdown', e=>{
+  const {mx, my, nx, ny} = ndcFromEvent(e);
+  if (e.button === 2) { // 右: 回転（Shift+右: パン）
+    mouseMode = e.shiftKey ? 'pan' : 'orbit';
+    mSt = {x:e.clientX, y:e.clientY};
+    camSt = {theta:camTheta, phi:camPhi, target:camTarget.clone()};
+    return;
+  }
+  if (e.button === 1) { // 中: パン
+    mouseMode = 'pan';
+    mSt = {x:e.clientX, y:e.clientY};
+    camSt = {target:camTarget.clone()};
+    e.preventDefault();
+    return;
+  }
+  if (e.button !== 0) return;
+
+  if (tool === 'frame') {
+    let pt = snapEndpoint(mx, my);
+    if (pt) { // 端点スナップ → 作業平面をその点へ移動
+      planeAnchor.set(pt.x, pt.y, pt.z);
+      syncOffsetField();
+    } else {
+      const p = planePoint(nx, ny);
+      if (!p) return;
+      pt = snapV(p);
+    }
+    if (drawSt && e.shiftKey) pt = axisLock(drawSt, pt);
+    if (!drawSt) {
+      drawSt = {x:pt.x, y:pt.y, z:pt.z};
+      planeAnchor.set(pt.x, pt.y, pt.z);
+      syncOffsetField();
+      updateWorkplane();
+    } else if (pt.x!==drawSt.x || pt.y!==drawSt.y || pt.z!==drawSt.z) {
+      saveUndo();
+      const series = document.getElementById('ds-series').value;
+      const colorB = document.getElementById('ds-color').value === 'B';
+      const prod = document.getElementById('ds-prod').value || 'std';
+      frames.push({id:nextId++, x1:drawSt.x, y1:drawSt.y, z1:drawSt.z,
+        x2:pt.x, y2:pt.y, z2:pt.z, series, prod, colorB, lcn:'mi', rcn:'mi', qty:1, label:''});
+      selId = frames[frames.length-1].id;
+      drawSt = {x:pt.x, y:pt.y, z:pt.z}; // 連続描画
+      planeAnchor.set(pt.x, pt.y, pt.z);
+      syncOffsetField();
+      updateProp(); rebuildScene(); updateBOM();
+    }
+    return;
+  }
+
+  if (tool === 'panel') { // パネル: 対角2点で矩形（作業平面上）
+    let pt = snapEndpoint(mx, my);
+    if (pt) { planeAnchor.set(pt.x, pt.y, pt.z); syncOffsetField(); }
+    else { const p = planePoint(nx, ny); if (!p) return; pt = snapV(p); }
+    if (!pDrawSt) {
+      pDrawSt = {x:pt.x, y:pt.y, z:pt.z};
+      planeAnchor.set(pt.x, pt.y, pt.z);
+      syncOffsetField(); updateWorkplane();
+    } else {
+      // 2点目は作業平面上に投影
+      if (planeMode==='XZ') pt.y = pDrawSt.y;
+      else if (planeMode==='XY') pt.z = pDrawSt.z;
+      else pt.x = pDrawSt.x;
+      const du = (planeMode==='YZ') ? Math.abs(pt.z-pDrawSt.z) : Math.abs(pt.x-pDrawSt.x);
+      const dv = (planeMode==='XZ') ? Math.abs(pt.z-pDrawSt.z) : Math.abs(pt.y-pDrawSt.y);
+      if (du > 0 && dv > 0) {
+        saveUndo();
+        panels.push({id:nextPid++, kind:'panel', plane:planeMode,
+          x1:pDrawSt.x, y1:pDrawSt.y, z1:pDrawSt.z, x2:pt.x, y2:pt.y, z2:pt.z, qty:1, label:''});
+        selPid = panels[panels.length-1].id; selId = null; selEnd = null;
+        pDrawSt = null;
+        updateProp(); rebuildScene(); updateBOM();
+      }
+    }
+    return;
+  }
+
+  if (tool === 'select') {
+    raycaster.setFromCamera(new THREE.Vector2(nx, ny), camera);
+    const hits = raycaster.intersectObjects(frameGroup.children, true).filter(h=>h.object.userData.fid || h.object.userData.pid);
+    if (hits.length && hits[0].object.userData.pid) { // パネルを選択
+      selPid = hits[0].object.userData.pid; selId = null; selEnd = null;
+      updateProp(); rebuildScene();
+      return;
+    }
+    if (hits.length) {
+      selPid = null;
+      selId = hits[0].object.userData.fid;
+      selEnd = hits[0].object.userData.end || null; // コネクタをクリックした場合はその端を選択
+      const f = frames.find(f=>f.id===selId);
+      const hp = hits[0].point;
+      dragShiftY = e.shiftKey;
+      if (dragShiftY) { // 垂直移動: カメラ向き法線の鉛直平面
+        const n = new THREE.Vector3().subVectors(camera.position, hp); n.y = 0;
+        if (n.lengthSq() < 1e-6) n.set(0,0,1);
+        n.normalize();
+        dragPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(n, hp);
+      } else { // 水平移動: クリック点の高さの水平面
+        dragPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(new THREE.Vector3(0,1,0), hp);
+      }
+      dragStartPt = hp.clone();
+      dragF0 = {x1:f.x1, y1:f.y1, z1:f.z1, x2:f.x2, y2:f.y2, z2:f.z2};
+      dragMoved = false;
+      mouseMode = 'drag';
+    } else {
+      selId = null; selEnd = null; selPid = null;
+    }
+    updateProp(); rebuildScene();
+  }
+});
+
+canvas.addEventListener('pointermove', e=>{
+  const {mx, my, nx, ny} = ndcFromEvent(e);
+
+  if (mouseMode === 'orbit') {
+    camTheta = camSt.theta - (e.clientX - mSt.x) * 0.006;
+    camPhi   = camSt.phi   - (e.clientY - mSt.y) * 0.006;
+    updateCam();
+    return;
+  }
+  if (mouseMode === 'pan') {
+    const k = camR * 0.0012;
+    const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
+    const up    = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+    camTarget.copy(camSt.target)
+      .addScaledVector(right, -(e.clientX - mSt.x) * k)
+      .addScaledVector(up,     (e.clientY - mSt.y) * k);
+    updateCam();
+    return;
+  }
+  if (mouseMode === 'drag' && selId) {
+    raycaster.setFromCamera(new THREE.Vector2(nx, ny), camera);
+    const pt = new THREE.Vector3();
+    if (raycaster.ray.intersectPlane(dragPlane, pt)) {
+      let dx = 0, dy = 0, dz = 0;
+      if (dragShiftY) { dy = snap(pt.y - dragStartPt.y); }
+      else { dx = snap(pt.x - dragStartPt.x); dz = snap(pt.z - dragStartPt.z); }
+      if (dx || dy || dz) dragMoved = true;
+      const f = frames.find(f=>f.id===selId);
+      if (f) {
+        f.x1 = dragF0.x1+dx; f.y1 = dragF0.y1+dy; f.z1 = dragF0.z1+dz;
+        f.x2 = dragF0.x2+dx; f.y2 = dragF0.y2+dy; f.z2 = dragF0.z2+dz;
+      }
+      updateProp(); rebuildScene();
+    }
+    return;
+  }
+
+  // 通常移動: 座標表示・プレビュー
+  let pt = null;
+  const ep = (tool==='frame') ? snapEndpoint(mx, my) : null;
+  if (ep) {
+    pt = ep;
+    snapDot.position.set(ep.x, ep.y, ep.z);
+    snapDot.visible = true;
+  } else {
+    snapDot.visible = false;
+    const p = planePoint(nx, ny);
+    if (p) pt = snapV(p);
+  }
+  if (pt) {
+    if (tool==='frame' && drawSt && e.shiftKey) pt = axisLock(drawSt, pt);
+    mw = pt;
+    document.getElementById('s-pos').textContent = `X: ${mw.x}  Y: ${mw.y}  Z: ${mw.z} mm`;
+  }
+  const ovl = document.getElementById('ovl');
+  if (tool==='frame' && drawSt && pt) {
+    pvLine.geometry.setFromPoints([new THREE.Vector3(drawSt.x,drawSt.y,drawSt.z), new THREE.Vector3(pt.x,pt.y,pt.z)]);
+    pvLine.computeLineDistances();
+    pvLine.visible = true;
+    pvDot.position.set(drawSt.x, drawSt.y, drawSt.z);
+    pvDot.visible = true;
+    const dx = pt.x-drawSt.x, dy = pt.y-drawSt.y, dz = pt.z-drawSt.z;
+    const len = Math.round(Math.hypot(dx, dy, dz));
+    // 作業平面内の角度（平面の第1軸基準）＋面外の仰角
+    let u, v, w3;
+    if (planeMode === 'XZ')      { u = dx; v = dz; w3 = dy; }
+    else if (planeMode === 'XY') { u = dx; v = dy; w3 = dz; }
+    else                         { u = dz; v = dy; w3 = dx; }
+    const angIn = Math.round(Math.atan2(v, u) * 180 / Math.PI * 10) / 10;
+    let txt = len + 'mm　∠' + angIn + '°';
+    if (Math.abs(w3) > 0.5) {
+      const angOut = Math.round(Math.atan2(w3, Math.hypot(u, v)) * 180 / Math.PI * 10) / 10;
+      txt += '（面外 ' + angOut + '°）';
+    }
+    ovl.textContent = txt;
+    ovl.style.left = (mx + 14) + 'px';
+    ovl.style.top  = (my - 18) + 'px';
+    ovl.style.display = 'block';
+  } else if (tool==='panel' && pDrawSt && pt) {
+    // パネルプレビュー: 矩形の枠
+    const B = {x:pt.x, y:pt.y, z:pt.z};
+    if (planeMode==='XZ') B.y = pDrawSt.y;
+    else if (planeMode==='XY') B.z = pDrawSt.z;
+    else B.x = pDrawSt.x;
+    const A = pDrawSt;
+    let cs;
+    if (planeMode==='XZ')      cs = [[A.x,A.y,A.z],[B.x,A.y,A.z],[B.x,A.y,B.z],[A.x,A.y,B.z],[A.x,A.y,A.z]];
+    else if (planeMode==='XY') cs = [[A.x,A.y,A.z],[B.x,A.y,A.z],[B.x,B.y,A.z],[A.x,B.y,A.z],[A.x,A.y,A.z]];
+    else                       cs = [[A.x,A.y,A.z],[A.x,A.y,B.z],[A.x,B.y,B.z],[A.x,B.y,A.z],[A.x,A.y,A.z]];
+    pvLine.geometry.setFromPoints(cs.map(c=>new THREE.Vector3(c[0],c[1],c[2])));
+    pvLine.computeLineDistances();
+    pvLine.visible = true;
+    pvDot.position.set(A.x, A.y, A.z);
+    pvDot.visible = true;
+    const du = (planeMode==='YZ') ? Math.abs(B.z-A.z) : Math.abs(B.x-A.x);
+    const dv = (planeMode==='XZ') ? Math.abs(B.z-A.z) : Math.abs(B.y-A.y);
+    ovl.textContent = du + '×' + dv + 'mm';
+    ovl.style.left = (mx + 14) + 'px';
+    ovl.style.top  = (my - 18) + 'px';
+    ovl.style.display = 'block';
+  } else {
+    pvLine.visible = false;
+    if (!drawSt && !pDrawSt) pvDot.visible = false;
+    ovl.style.display = 'none';
+  }
+});
+
+canvas.addEventListener('pointerup', ()=>{
+  if (mouseMode === 'drag' && dragMoved) { saveUndo(); updateBOM(); }
+  mouseMode = null;
+});
+canvas.addEventListener('pointerleave', ()=>{ mouseMode = null; });
+canvas.addEventListener('contextmenu', e=>e.preventDefault());
+canvas.addEventListener('wheel', e=>{
+  e.preventDefault();
+  camR *= (e.deltaY > 0 ? 1.12 : 0.89);
+  updateCam();
+}, {passive:false});
+
+// ---------- 品種セレクト ----------
+function fillProdSelect() {
+  const series = document.getElementById('ds-series').value;
+  const sel = document.getElementById('ds-prod');
+  sel.innerHTML = FR[series].map(x=>`<option value="${x.id}">${x.name}</option>`).join('');
+}
+
+// ---------- 作業平面UI ----------
+function setPlaneMode(m) {
+  planeMode = m;
+  drawSt = null; pvLine.visible = false; pvDot.visible = false;
+  syncOffsetField();
+  updateWorkplane();
+}
+function setPlaneOffset(v) {
+  if (planeMode==='XZ') planeAnchor.y = v;
+  else if (planeMode==='XY') planeAnchor.z = v;
+  else planeAnchor.x = v;
+  updateWorkplane();
+}
+function syncOffsetField() {
+  const v = planeMode==='XZ' ? planeAnchor.y : (planeMode==='XY' ? planeAnchor.z : planeAnchor.x);
+  document.getElementById('ds-offset').value = v;
+}
+
+// ---------- ツール ----------
+function setTool(t) {
+  tool = t;
+  if (t !== 'frame') drawSt = null;
+  if (t !== 'panel') pDrawSt = null;
+  if (t === 'select') { pvLine.visible = false; pvDot.visible = false; snapDot.visible = false; document.getElementById('ovl').style.display='none'; }
+  document.querySelectorAll('.tbtn[id^="tbtn-"]').forEach(b=>b.classList.remove('active'));
+  const b = document.getElementById('tbtn-'+t); if (b) b.classList.add('active');
+  canvas.style.cursor = (t==='frame'||t==='panel') ? 'crosshair' : 'default';
+  updateWorkplane();
+}
+function duplicateSelected() {
+  if (selPid) { // パネルの複製
+    const p = panels.find(p=>p.id===selPid); if (!p) return;
+    saveUndo();
+    const off = snapSz * 5;
+    const copy = {...p, id: nextPid++, x1:p.x1+off, z1:p.z1+off, x2:p.x2+off, z2:p.z2+off};
+    panels.push(copy);
+    selPid = copy.id;
+    updateProp(); rebuildScene(); updateBOM();
+    return;
+  }
+  const f = frames.find(f=>f.id===selId);
+  if (!f) { alert('複製するフレーム／パネルを選択してください（[V] 選択モードでクリック）'); return; }
+  saveUndo();
+  // 同じ向き・同じ長さのまま、少しずらした位置に複製（スナップ5コマ分）
+  const off = snapSz * 5;
+  const copy = {
+    id: nextId++,
+    x1: f.x1 + off, y1: f.y1, z1: f.z1 + off,   // 高さ（Y）は維持
+    x2: f.x2 + off, y2: f.y2, z2: f.z2 + off,
+    series: f.series, prod: f.prod || 'std', colorB: f.colorB,
+    lcn: f.lcn, rcn: f.rcn,
+    qty: f.qty, label: f.label || '',
+    dimShow: f.dimShow,
+    acc: (f.acc||[]).map(a=>({...a})),
+  };
+  frames.push(copy);
+  selId = copy.id; selEnd = null;
+  updateProp(); rebuildScene(); updateBOM();
+}
+function deleteSelected() {
+  if (selPid) {
+    saveUndo(); panels = panels.filter(p=>p.id!==selPid); selPid = null;
+    updateProp(); rebuildScene(); updateBOM();
+    return;
+  }
+  if (!selId) return;
+  saveUndo(); frames = frames.filter(f=>f.id!==selId); selId = null; selEnd = null;
+  updateProp(); rebuildScene(); updateBOM();
+}
+function toggleGrid() {
+  showGrid = !showGrid;
+  document.getElementById('tbtn-grid').style.color = showGrid ? 'var(--accent)' : '#555';
+  gridGroup.visible = showGrid;
+}
+function toggleDim() {
+  showDim = !showDim;
+  document.getElementById('tbtn-dim').style.color = showDim ? 'var(--accent)' : '#555';
+  rebuildScene();
+}
+
+// ---------- Undo ----------
+function saveUndo() {
+  undoStack.push(JSON.stringify({frames, nextId, selId, panels, nextPid, selPid}));
+  if (undoStack.length > 40) undoStack.shift();
+}
+function undo() {
+  if (!undoStack.length) return;
+  const s = JSON.parse(undoStack.pop());
+  frames = s.frames; nextId = s.nextId; selId = s.selId; selEnd = null;
+  panels = s.panels || []; nextPid = s.nextPid || 1; selPid = s.selPid || null;
+  updateProp(); rebuildScene(); updateBOM();
+}
+
+// ---------- プロパティパネル ----------
+function updateProp() {
+  const el = document.getElementById('propContent');
+  if (selPid) { // パネルのプロパティ
+    const p = panels.find(p=>p.id===selPid);
+    if (!p) { el.innerHTML=''; return; }
+    const s2 = panelSize(p);
+    el.innerHTML = `
+      <div class="frow"><label>名称</label>
+        <input type="text" value="${p.label||''}" oninput="setPProp('label',this.value)"></div>
+      <div class="frow"><label>種類</label>
+        <select onchange="setPProp('kind',this.value)">
+          <option value="panel"${p.kind==='panel'?' selected':''}>パネル（面材）</option>
+          <option value="doorN"${p.kind==='doorN'?' selected':''}>パネル扉（N用蝶番）</option>
+          <option value="doorS"${p.kind==='doorS'?' selected':''}>パネル扉（S用蝶番）</option>
+        </select></div>
+      <div class="frow"><label>数量</label>
+        <input type="number" min="1" max="99" value="${p.qty}" oninput="setPProp('qty',+this.value||1)"></div>
+      <div style="margin-top:8px">
+        <div class="calc-row"><span>サイズ（W×H）</span><span class="val">${s2.w} × ${s2.h} mm</span></div>
+        <div class="calc-row"><span>作業平面</span><span class="val">${p.plane}</span></div>
+      </div>
+      <div style="font-size:10px;color:var(--text-sub);margin-top:8px;line-height:1.6">
+        ※面材（アルミ複合板等）はサイズ・材質により価格が異なるため、発注リストでは参考価格対象外です。
+        <a href="${PANEL_CAT_URL}" target="_blank" style="color:var(--green)">ストアのパネルカテゴリ</a>でご確認ください。<br>
+        ※取付にはパネルホールド／ボードホルダ等が別途必要です。<br>
+        ※扉タイプは抜き差し蝶番（L/R 各1個）が発注リストに自動追加されます。
+      </div>
+      <div style="font-size:10px;color:#999;margin-top:6px">P#${p.id} (${p.x1},${p.y1},${p.z1})→(${p.x2},${p.y2},${p.z2})</div>
+    `;
+    return;
+  }
+  if (!selId) { el.innerHTML = '<span style="color:#999;font-size:11px">フレームを選択してください</span>'; return; }
+  const f = frames.find(f=>f.id===selId);
+  if (!f) { el.innerHTML=''; return; }
+  const len = fLen(f), ell = calcEll(f), ang = frameAngles(f);
+  const opt1 = (c,s) => `<option value="${c.id}"${c.id===s?' selected':''}>${c.name}</option>`;
+  const opts = s => '<optgroup label="コネクタ">' + CN[f.series].map(c=>opt1(c,s)).join('') + '</optgroup>'
+    + '<optgroup label="端部パーツ（キャップ/フット/キャスター）">' + EP[f.series].map(c=>opt1(c,s)).join('') + '</optgroup>';
+  const hl = end => selEnd===end ? ' style="border-color:#f0a500;box-shadow:0 0 0 2px rgba(240,165,0,0.35)"' : '';
+  const cInfo = end => {
+    const partners = jointPartners(f, end);
+    const j = partners.length ? `<span style="color:var(--green)">｜🔗 #${partners.join(',#')}と接続（自動同期）</span>` : '';
+    const c = getCN(f.series, end==='l' ? f.lcn : f.rcn);
+    if (!c || c.id==='none') return '<span style="color:#999">コネクタなし</span>' + j;
+    const code = f.colorB ? (c.codeB || c.code) : c.code;
+    return `${code}｜差込 ${c.ins}mm${c.est?'（標準値・要確認）':''}｜¥${(f.colorB ? (c.pB||c.p) : c.p).toLocaleString()}` + j;
+  };
+  const ci = (k) => `<input type="number" step="${snapSz}" value="${f[k]}" oninput="setCoord('${k}',+this.value||0)" style="width:30%">`;
+  el.innerHTML = `
+    <div class="frow"><label>名称</label>
+      <input type="text" value="${f.label||''}" oninput="setProp('label',this.value)"></div>
+    <div class="frow"><label>シリーズ</label>
+      <select onchange="setProp('series',this.value)">
+        <option value="N"${f.series==='N'?' selected':''}>N [28mm]</option>
+        <option value="S"${f.series==='S'?' selected':''}>S [19mm]</option>
+        <option value="G"${f.series==='G'?' selected':''}>G [43mm]</option>
+      </select></div>
+    <div class="frow"><label>品種</label>
+      <select onchange="setProp('prod',this.value)">
+        ${FR[f.series].map(x=>`<option value="${x.id}"${x.id===(f.prod||'std')?' selected':''}>${x.name}</option>`).join('')}
+      </select></div>
+    <div class="frow"><label>カラー</label>
+      <select onchange="setProp('colorB',this.value==='B')">
+        <option value="S"${!f.colorB?' selected':''}>シルバー</option>
+        <option value="B"${f.colorB?' selected':''}>ブラック</option>
+      </select></div>
+    <div class="frow"><label>数量</label>
+      <input type="number" min="1" max="99" value="${f.qty}" oninput="setProp('qty',+this.value||1)"></div>
+    <div class="frow"><label>寸法表示</label>
+      <select onchange="setProp('dimShow',this.value==='1')">
+        <option value="1"${f.dimShow!==false?' selected':''}>表示</option>
+        <option value="0"${f.dimShow===false?' selected':''}>非表示</option>
+      </select></div>
+    <div style="margin-top:6px;margin-bottom:4px" class="psec-title">座標（mm）</div>
+    <div class="frow"><label>始点 XYZ</label>${ci('x1')}${ci('y1')}${ci('z1')}</div>
+    <div class="frow"><label>終点 XYZ</label>${ci('x2')}${ci('y2')}${ci('z2')}</div>
+    <div style="margin-top:6px;margin-bottom:4px" class="psec-title">コネクタ（3Dビューでクリックしても選択できます）</div>
+    <div class="frow"><label>始点側</label>
+      <select${hl('l')} onchange="setProp('lcn',this.value)">${opts(f.lcn)}</select></div>
+    <div class="conn-info">${cInfo('l')}</div>
+    <div class="frow"><label>終点側</label>
+      <select${hl('r')} onchange="setProp('rcn',this.value)">${opts(f.rcn)}</select></div>
+    <div class="conn-info">${cInfo('r')}</div>
+    <div style="margin-top:6px;margin-bottom:4px" class="psec-title">中間パーツ（クロス・ダブル等／ℓに影響なし）</div>
+    <div class="frow"><label>追加</label>
+      <select id="accSel">${ACC[f.series].map(a=>`<option value="${a.id}">${a.name}</option>`).join('')}</select></div>
+    <div class="frow"><label></label>
+      <button onclick="addAcc()" style="flex:1;padding:4px;border:1px solid var(--green);background:#e8f5e9;color:var(--green);border-radius:4px;cursor:pointer;font-size:11px">＋ このフレームに追加</button></div>
+    ${(f.acc||[]).map((a,i)=>{const d=ACC[f.series].find(x=>x.id===a.id);
+      return `<div class="calc-row"><span>${d?d.name:a.id}</span><span class="val">×<input type="number" min="1" max="99" value="${a.qty}" style="width:40px;font-size:10px" oninput="setAccQty(${i},+this.value||1)"> <a href="#" onclick="delAcc(${i});return false" style="color:#c0392b;text-decoration:none">✕</a></span></div>`;}).join('')}
+    <div style="margin-top:8px">
+      <div class="calc-row"><span>外寸法</span><span class="val">${len} mm</span></div>
+      <div class="calc-row"><span>水平角 / 仰角</span><span class="val">${ang.az}° / ${ang.el}°</span></div>
+      <div class="calc-row"><span>X寸法（始点）</span><span class="val">${getIns(f.series,f.lcn)} mm</span></div>
+      <div class="calc-row"><span>Y寸法（終点）</span><span class="val">${getIns(f.series,f.rcn)} mm</span></div>
+    </div>
+    <div class="result-box${ell>0?'':' error'}">
+      <div class="ell-lbl">ℓ寸法</div>
+      <div class="ell-val">${ell>0?ell+'mm':'エラー'}</div>
+    </div>
+    <div style="font-size:10px;color:#999;margin-top:6px">#${f.id} (${f.x1},${f.y1},${f.z1})→(${f.x2},${f.y2},${f.z2})</div>
+  `;
+}
+function setProp(k, v) {
+  const f = frames.find(f=>f.id===selId); if (!f) return;
+  f[k] = v;
+  if (k==='series') { f.lcn='mi'; f.rcn='mi'; f.prod='std'; }
+  // コネクタ変更時: 端点を共有する相手フレームにも同じコネクタを適用（双方のℓ寸法を調整）
+  // ※端部パーツ（ep_）は接続部品ではないため同期しない
+  if ((k==='lcn' || k==='rcn') && String(v).slice(0,3) !== 'ep_') syncJoint(f, k==='lcn' ? 'l' : 'r', v);
+  updateProp(); rebuildScene(); updateBOM();
+}
+// 接続部の同期: 同じ座標に端点を持つ同一シリーズのフレームへコネクタ設定をコピー
+function syncJoint(f, end, cid) {
+  const px = end==='l' ? f.x1 : f.x2;
+  const py = end==='l' ? f.y1 : f.y2;
+  const pz = end==='l' ? f.z1 : f.z2;
+  frames.forEach(o=>{
+    if (o.id === f.id || o.series !== f.series) return;
+    if (o.x1===px && o.y1===py && o.z1===pz) o.lcn = cid;
+    if (o.x2===px && o.y2===py && o.z2===pz) o.rcn = cid;
+  });
+}
+// 端点を共有している相手フレームのID一覧
+function jointPartners(f, end) {
+  const px = end==='l' ? f.x1 : f.x2;
+  const py = end==='l' ? f.y1 : f.y2;
+  const pz = end==='l' ? f.z1 : f.z2;
+  return frames.filter(o=>o.id!==f.id &&
+    ((o.x1===px && o.y1===py && o.z1===pz) || (o.x2===px && o.y2===py && o.z2===pz)))
+    .map(o=>o.id);
+}
+function addAcc() {
+  const f = frames.find(f=>f.id===selId); if (!f) return;
+  const id = document.getElementById('accSel').value; if (!id) return;
+  saveUndo();
+  f.acc = f.acc || [];
+  const ex = f.acc.find(a=>a.id===id);
+  if (ex) ex.qty += 1; else f.acc.push({id, qty:1});
+  updateProp(); rebuildScene(); updateBOM();
+}
+function setAccQty(i, q) {
+  const f = frames.find(f=>f.id===selId); if (!f || !f.acc || !f.acc[i]) return;
+  f.acc[i].qty = q;
+  rebuildScene(); updateBOM();
+}
+function delAcc(i) {
+  const f = frames.find(f=>f.id===selId); if (!f || !f.acc) return;
+  saveUndo();
+  f.acc.splice(i, 1);
+  updateProp(); rebuildScene(); updateBOM();
+}
+function setPProp(k, v) {
+  const p = panels.find(p=>p.id===selPid); if (!p) return;
+  p[k] = v;
+  updateProp(); rebuildScene(); updateBOM();
+}
+function setCoord(k, v) {
+  const f = frames.find(f=>f.id===selId); if (!f) return;
+  f[k] = v;
+  rebuildScene(); updateBOM();
+  // 座標入力中はパネル再描画しない（フォーカス維持）— 計算欄のみ更新は次回選択時
+}
+
+// ---------- ステータス ----------
+function updateStatus() {
+  document.getElementById('s-count').textContent = 'フレーム ' + frames.length + '本'
+    + (panels.length ? '　パネル ' + panels.length + '枚' : '');
+}
+
+// ---------- BOM（2D版と共通ロジック） ----------
+function updateBOM() {
+  const tbody = document.getElementById('bomTbody');
+  const tfoot = document.getElementById('bomTfoot');
+  const note = document.getElementById('bomNote');
+
+  if (!frames.length && !panels.length) {
+    tbody.innerHTML = '';
+    tfoot.innerHTML = '';
+    note.textContent = 'フレームを描画すると自動で発注リストが生成されます。';
+    document.getElementById('bomBadge').textContent = '';
+    return;
+  }
+
+  const fMap = {}, cMap = {};
+  frames.forEach(f=>{
+    const ell = calcEll(f);
+    if (ell <= 0) return;
+    const s = SD[f.series];
+    const fr = getFR(f.series, f.prod);
+    const fcode = f.colorB ? (fr.codeB || fr.code) : fr.code;
+    const fname = fr.name + (f.colorB && fr.codeB ? ' B' : '');
+    const fkey = fcode + '_' + ell;
+    // 標準品種のみmm単価が既知。その他はストア価格確認（p=null）
+    const fprice = fr.id === 'std' ? Math.ceil(ell * s.ppm) : null;
+    if (!fMap[fkey]) fMap[fkey] = {code:fcode, name:fname,
+      series:f.series, ell, p:fprice, qty:0, labels:[]};
+    fMap[fkey].qty += f.qty;
+    if (f.label) fMap[fkey].labels.push(f.label);
+
+  });
+
+  // コネクタ集計: 接続部（同一座標の端点＋同一品番）ごとに1個として計上
+  const joints = {};
+  frames.forEach(f=>{
+    if (calcEll(f) <= 0) return;
+    [['l', f.lcn, f.x1, f.y1, f.z1], ['r', f.rcn, f.x2, f.y2, f.z2]].forEach(e=>{
+      const cid = e[1];
+      if (!cid || cid==='none') return;
+      const c = getCN(f.series, cid);
+      if (!c || !c.p) return;
+      const ccode = f.colorB ? (c.codeB || c.code) : c.code;
+      if (!ccode) return;
+      const jk = e[2]+','+e[3]+','+e[4]+'|'+ccode; // 座標＋品番
+      if (!joints[jk]) joints[jk] = {code:ccode, name:c.name+(f.colorB?' B':''), series:f.series, p:f.colorB?(c.pB||c.p):c.p, qty:f.qty};
+      else joints[jk].qty = Math.max(joints[jk].qty, f.qty); // 共有端点は1個扱い
+    });
+  });
+  Object.values(joints).forEach(j=>{
+    if (!cMap[j.code]) cMap[j.code] = {code:j.code, name:j.name, series:j.series, p:j.p, qty:0};
+    cMap[j.code].qty += j.qty;
+  });
+
+  // 中間パーツ（フレームごとの追加パーツ）
+  frames.forEach(f=>{
+    (f.acc||[]).forEach(a=>{
+      const d = ACC[f.series].find(x=>x.id===a.id); if (!d) return;
+      if (!cMap[d.code]) cMap[d.code] = {code:d.code, name:d.name, series:f.series, p:d.p, qty:0};
+      cMap[d.code].qty += a.qty * f.qty;
+    });
+  });
+
+  // パネル扉の蝶番（L/R 各1個×数量）
+  panels.forEach(p=>{
+    if (p.kind !== 'panel' && DOOR_PARTS[p.kind]) {
+      DOOR_PARTS[p.kind].forEach(d=>{
+        if (!cMap[d.code]) cMap[d.code] = {code:d.code, name:d.name, series:p.kind==='doorN'?'N':'S', p:d.p, qty:0};
+        cMap[d.code].qty += p.qty;
+      });
+    }
+  });
+
+  let html = '', total = 0;
+  Object.values(fMap).forEach(it=>{
+    const sub = it.p !== null ? it.p * it.qty : null;
+    if (sub !== null) total += sub;
+    const lbl = it.labels.length ? ` <span style="color:#888">(${it.labels.join(',')})</span>` : '';
+    html += `<tr>
+      <td><a href="https://store.g-fun.jp/item/detail.php?ItemNo=${it.code}" target="_blank" style="color:var(--green)">${it.code}</a></td>
+      <td>${it.name}${lbl}</td><td>${it.series}シリーズ</td>
+      <td class="r">${it.ell}mm</td><td class="r">${it.qty}</td>
+      <td class="r">${it.p !== null ? '¥'+it.p.toLocaleString() : '—'}</td>
+      <td class="r">${sub !== null ? '¥'+sub.toLocaleString() : '要確認'}</td></tr>`;
+  });
+  Object.values(cMap).forEach(it=>{
+    const sub = it.p * it.qty; total += sub;
+    html += `<tr>
+      <td><a href="https://store.g-fun.jp/item/detail.php?ItemNo=${it.code}" target="_blank" style="color:var(--green)">${it.code}</a></td>
+      <td>${it.name}</td><td>${it.series}シリーズ</td>
+      <td class="r">—</td><td class="r">${it.qty}</td>
+      <td class="r">¥${it.p.toLocaleString()}</td><td class="r">¥${sub.toLocaleString()}</td></tr>`;
+  });
+
+  // パネル面材（サイズ指定・参考価格対象外）
+  panels.forEach(p=>{
+    const s2 = panelSize(p);
+    const lbl = p.label ? ` <span style="color:#888">(${p.label})</span>` : '';
+    html += `<tr>
+      <td><a href="${PANEL_CAT_URL}" target="_blank" style="color:var(--green)">面材選択</a></td>
+      <td>${p.kind==='panel'?'パネル（面材）':'パネル扉（面材）'}${lbl}</td><td>サイズ指定</td>
+      <td class="r">${s2.w}×${s2.h}mm</td><td class="r">${p.qty}</td>
+      <td class="r">—</td><td class="r">要確認</td></tr>`;
+  });
+
+  tbody.innerHTML = html || '<tr><td colspan="7" style="text-align:center;color:#c0392b;padding:10px">⚠️ 有効なフレームがありません（ℓ寸法を確認してください）</td></tr>';
+  tfoot.innerHTML = `<tr class="tr-total"><td colspan="6" style="text-align:right">合計（税込・送料別）</td><td class="r">¥${total.toLocaleString()}</td></tr>`;
+  document.getElementById('bomBadge').textContent = '合計 ¥' + total.toLocaleString();
+  note.textContent = '※標準フレーム（N/S/G）の価格はmm単価×ℓ寸法の参考値。NW/NL等の品種は単価が異なるため「要確認」（合計対象外）。コネクタは接続部ごとに1個で集計。パネル面材も合計対象外。実際の価格はG-Funオンラインストアでご確認ください。';
+}
+
+function toggleBOM() {
+  bomOpen = !bomOpen;
+  document.getElementById('bomPanel').classList.toggle('collapsed', !bomOpen);
+  document.getElementById('bomChev').textContent = bomOpen ? '▼' : '▲';
+  setTimeout(resize3d, 220);
+}
+
+// ---------- エクスポート ----------
+function exportCSV() {
+  let csv = '﻿品番,品名,シリーズ,ℓ寸法(mm),数量,単価(税込),小計(税込)\n';
+  const fMap = {}, cMap = {};
+  frames.forEach(f=>{
+    const ell = calcEll(f); if (ell <= 0) return;
+    const s = SD[f.series];
+    const fr = getFR(f.series, f.prod);
+    const code = f.colorB ? (fr.codeB || fr.code) : fr.code;
+    const p = fr.id === 'std' ? Math.ceil(ell * s.ppm) : null;
+    const k = code + '_' + ell;
+    if (!fMap[k]) fMap[k] = {code, name:fr.name + (f.colorB && fr.codeB ? ' B' : ''), ell, p, qty:0};
+    fMap[k].qty += f.qty;
+  });
+  // コネクタ: 接続部（同一座標＋同一品番）ごとに1個
+  const joints = {};
+  frames.forEach(f=>{
+    if (calcEll(f) <= 0) return;
+    [['l', f.lcn, f.x1, f.y1, f.z1], ['r', f.rcn, f.x2, f.y2, f.z2]].forEach(e=>{
+      const cid = e[1];
+      if (!cid || cid==='none') return;
+      const c = getCN(f.series, cid); if (!c || !c.p) return;
+      const cc = f.colorB ? (c.codeB || c.code) : c.code; if (!cc) return;
+      const jk = e[2]+','+e[3]+','+e[4]+'|'+cc;
+      if (!joints[jk]) joints[jk] = {code:cc, name:c.name, p:f.colorB?(c.pB||c.p):c.p, qty:f.qty};
+      else joints[jk].qty = Math.max(joints[jk].qty, f.qty);
+    });
+  });
+  Object.values(joints).forEach(j=>{
+    if (!cMap[j.code]) cMap[j.code] = {code:j.code, name:j.name, p:j.p, qty:0};
+    cMap[j.code].qty += j.qty;
+  });
+  frames.forEach(f=>{ // 中間パーツ
+    (f.acc||[]).forEach(a=>{
+      const d = ACC[f.series].find(x=>x.id===a.id); if (!d) return;
+      if (!cMap[d.code]) cMap[d.code] = {code:d.code, name:d.name, p:d.p, qty:0};
+      cMap[d.code].qty += a.qty * f.qty;
+    });
+  });
+  panels.forEach(p=>{ // 扉蝶番
+    if (p.kind !== 'panel' && DOOR_PARTS[p.kind]) {
+      DOOR_PARTS[p.kind].forEach(d=>{
+        if (!cMap[d.code]) cMap[d.code] = {code:d.code, name:d.name, p:d.p, qty:0};
+        cMap[d.code].qty += p.qty;
+      });
+    }
+  });
+  Object.values(fMap).forEach(it=>{ const s = it.p !== null ? it.p*it.qty : '要確認'; csv += `"${it.code}","${it.name}","","${it.ell}","${it.qty}","${it.p !== null ? it.p : ''}","${s}"\n`; });
+  Object.values(cMap).forEach(it=>{ const s = it.p*it.qty; csv += `"${it.code}","${it.name}","","","${it.qty}","${it.p}","${s}"\n`; });
+  panels.forEach(p=>{ // 面材（価格は要確認）
+    const s2 = panelSize(p);
+    csv += `"要選択","${p.kind==='panel'?'パネル（面材）':'パネル扉（面材）'}${p.label?'（'+p.label+'）':''}","${s2.w}×${s2.h}mm","","${p.qty}","",""\n`;
+  });
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'gfun_order.csv'; a.click();
+}
+
+function exportPNG() {
+  renderer.render(scene, camera);
+  const a = document.createElement('a');
+  a.href = renderer.domElement.toDataURL('image/png');
+  a.download = 'gfun_3d_view.png'; a.click();
+}
+
+function saveProject() {
+  const data = {version:'3d-2', frames, nextId, panels, nextPid,
+    cam:{target:[camTarget.x,camTarget.y,camTarget.z], r:camR, theta:camTheta, phi:camPhi}};
+  const a = document.createElement('a');
+  a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(data, null, 2));
+  a.download = 'gfun_3d_project.json'; a.click();
+}
+function loadProject() {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = '.json';
+  inp.onchange = e=>{
+    const f = e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = ev=>{
+      try {
+        const d = JSON.parse(ev.target.result);
+        let fr = d.frames || [];
+        // 2D CADのプロジェクトを自動変換: (x,y) → 床面 (x, 0, z=y)
+        const is2d = fr.length && fr[0].z1 === undefined;
+        if (is2d) {
+          fr = fr.map(o=>({id:o.id, x1:o.x1, y1:0, z1:o.y1, x2:o.x2, y2:0, z2:o.y2,
+            series:o.series, colorB:o.colorB, lcn:o.lcn, rcn:o.rcn, qty:o.qty, label:o.label||''}));
+          alert('2D CADのプロジェクトを読み込みました。\n平面図を床面（高さY=0）に配置しています。');
+        }
+        frames = fr; nextId = d.nextId || (Math.max(0,...fr.map(o=>o.id))+1); selId = null; selEnd = null;
+        panels = d.panels || []; nextPid = d.nextPid || (Math.max(0,...panels.map(o=>o.id))+1); selPid = null;
+        if (d.cam) {
+          camTarget.set(...d.cam.target); camR = d.cam.r; camTheta = d.cam.theta; camPhi = d.cam.phi;
+          updateCam();
+        }
+        updateProp(); rebuildScene(); updateBOM(); zoomFit();
+      } catch { alert('読み込みエラー'); }
+    };
+    r.readAsText(f);
+  };
+  inp.click();
+}
+function newProject() {
+  if (frames.length && !confirm('新規プロジェクトを作成しますか？')) return;
+  frames = []; nextId = 1; selId = null; selEnd = null; undoStack = [];
+  panels = []; nextPid = 1; selPid = null; pDrawSt = null;
+  drawSt = null; pvLine.visible = false; pvDot.visible = false;
+  updateProp(); rebuildScene(); updateBOM();
+}
+
+// ---------- キーボード ----------
+document.addEventListener('keydown', e=>{
+  if (e.target.tagName==='INPUT' || e.target.tagName==='SELECT') return;
+  const k = e.key;
+  if (k==='v'||k==='V') setTool('select');
+  if (k==='f'||k==='F') setTool('frame');
+  if (k==='p'||k==='P') setTool('panel');
+  if (k==='Escape') { drawSt=null; pDrawSt=null; pvLine.visible=false; pvDot.visible=false; setTool('select'); }
+  if (k==='Delete'||k==='Backspace') { e.preventDefault(); deleteSelected(); }
+  if (k==='z' && (e.ctrlKey||e.metaKey)) { e.preventDefault(); undo(); }
+  if ((k==='d'||k==='D') && (e.ctrlKey||e.metaKey)) { e.preventDefault(); duplicateSelected(); }
+  if (k==='0') zoomFit();
+  if (k==='1') setView('iso');
+  if (k==='2') setView('top');
+  if (k==='3') setView('front');
+  if (k==='4') setView('side');
+  if (k==='g'||k==='G') toggleGrid();
+});
+
+// ---------- 初期化 ----------
+fillProdSelect();
+resize3d();
+updateCam();
+updateWorkplane();
+rebuildScene();
+animate();
+</script>
+</body>
+</html>
