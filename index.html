@@ -1811,36 +1811,67 @@ function saveProject() {
   a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(data, null, 2));
   a.download = 'gfun_3d_project.json'; a.click();
 }
+function applyProjectData(d) {
+  let fr = d.frames || [];
+  // 2D CADのプロジェクトを自動変換: (x,y) → 床面 (x, 0, z=y)
+  const is2d = fr.length && fr[0].z1 === undefined;
+  if (is2d) {
+    fr = fr.map(o=>({id:o.id, x1:o.x1, y1:0, z1:o.y1, x2:o.x2, y2:0, z2:o.y2,
+      series:o.series, colorB:o.colorB, lcn:o.lcn, rcn:o.rcn, qty:o.qty, label:o.label||''}));
+  }
+  frames = fr; nextId = d.nextId || (Math.max(0,...fr.map(o=>o.id),0)+1); selId = null; selEnd = null;
+  panels = d.panels || []; nextPid = d.nextPid || (Math.max(0,...panels.map(o=>o.id),0)+1); selPid = null;
+  if (d.cam && Array.isArray(d.cam.target)) {
+    camTarget.set(...d.cam.target); camR = d.cam.r; camTheta = d.cam.theta; camPhi = d.cam.phi;
+    updateCam();
+  }
+  updateProp(); rebuildScene(); updateBOM(); zoomFit();
+  return { is2d, n: frames.length, p: panels.length };
+}
+function loadProjectText(text, fname) {
+  let d;
+  try { d = JSON.parse(text); }
+  catch (e) { alert('読み込みエラー: JSONとして解析できません。\nファイル: ' + (fname||'不明') + '\n' + e.message); return; }
+  if (!d || (!Array.isArray(d.frames) && !Array.isArray(d.panels))) {
+    alert('読み込みエラー: このファイルにはCADのフレームデータが含まれていません。\n保存した gfun_3d_project.json（または2D版の gfun_project.json）を選択してください。');
+    return;
+  }
+  try {
+    const r = applyProjectData(d);
+    document.getElementById('hint').textContent =
+      '✅ 読込完了: フレーム' + r.n + '本' + (r.p ? '・パネル' + r.p + '枚' : '') + (r.is2d ? '（2Dデータを床面に配置）' : '');
+    if (r.is2d) alert('2D CADのプロジェクトを読み込みました。\n平面図を床面（高さY=0）に配置しています。');
+  } catch (e) {
+    alert('読み込みエラー: ' + e.message);
+  }
+}
 function loadProject() {
   const inp = document.createElement('input');
-  inp.type = 'file'; inp.accept = '.json';
+  inp.type = 'file'; inp.accept = '.json,application/json';
+  // Safari等の一部ブラウザはDOM外のinputではダイアログが開かないため、必ずDOMに追加する
+  inp.style.position = 'fixed'; inp.style.left = '-9999px';
+  document.body.appendChild(inp);
+  const cleanup = ()=>{ if (inp.parentNode) inp.parentNode.removeChild(inp); };
   inp.onchange = e=>{
-    const f = e.target.files[0]; if (!f) return;
+    const f = e.target.files[0];
+    if (!f) { cleanup(); return; }
     const r = new FileReader();
-    r.onload = ev=>{
-      try {
-        const d = JSON.parse(ev.target.result);
-        let fr = d.frames || [];
-        // 2D CADのプロジェクトを自動変換: (x,y) → 床面 (x, 0, z=y)
-        const is2d = fr.length && fr[0].z1 === undefined;
-        if (is2d) {
-          fr = fr.map(o=>({id:o.id, x1:o.x1, y1:0, z1:o.y1, x2:o.x2, y2:0, z2:o.y2,
-            series:o.series, colorB:o.colorB, lcn:o.lcn, rcn:o.rcn, qty:o.qty, label:o.label||''}));
-          alert('2D CADのプロジェクトを読み込みました。\n平面図を床面（高さY=0）に配置しています。');
-        }
-        frames = fr; nextId = d.nextId || (Math.max(0,...fr.map(o=>o.id))+1); selId = null; selEnd = null;
-        panels = d.panels || []; nextPid = d.nextPid || (Math.max(0,...panels.map(o=>o.id))+1); selPid = null;
-        if (d.cam) {
-          camTarget.set(...d.cam.target); camR = d.cam.r; camTheta = d.cam.theta; camPhi = d.cam.phi;
-          updateCam();
-        }
-        updateProp(); rebuildScene(); updateBOM(); zoomFit();
-      } catch { alert('読み込みエラー'); }
-    };
+    r.onload = ev=>{ loadProjectText(ev.target.result, f.name); cleanup(); };
+    r.onerror = ()=>{ alert('読み込みエラー: ファイルを開けませんでした'); cleanup(); };
     r.readAsText(f);
   };
   inp.click();
 }
+// JSONファイルを画面にドラッグ＆ドロップでも読込可能
+window.addEventListener('dragover', e=>e.preventDefault());
+window.addEventListener('drop', e=>{
+  e.preventDefault();
+  const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = ev=>loadProjectText(ev.target.result, f.name);
+  r.readAsText(f);
+});
 function newProject() {
   if (frames.length && !confirm('新規プロジェクトを作成しますか？')) return;
   frames = []; nextId = 1; selId = null; selEnd = null; undoStack = [];
